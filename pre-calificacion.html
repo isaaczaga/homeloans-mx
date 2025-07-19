@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pre-calificación - HomeLoans.mx</title>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; }
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -25,11 +32,26 @@
 
     <div class="container mx-auto p-4 max-w-2xl">
         <div class="bg-white rounded-2xl shadow-xl">
-            <div class="p-8 border-b border-gray-200">
-                <h1 class="text-3xl font-bold text-gray-900">Formulario de Pre-calificación</h1>
-                <p class="mt-2 text-gray-600">Complete los siguientes pasos para iniciar. ¡Solo toma 5 minutos!</p>
+            <!-- Header -->
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <!-- CAMBIO: Logo añadido -->
+                <a href="index.html" class="flex items-center space-x-2">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                    <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
+                </a>
+                <a href="index.html" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center">
+                    <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>
+                    Volver al inicio
+                </a>
             </div>
+
+            <!-- Multi-step Form -->
             <form id="prequal-form" class="p-8">
+                 <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-900">Formulario de Pre-calificación</h1>
+                    <p class="mt-2 text-gray-600">Complete los siguientes pasos para iniciar. ¡Solo toma 5 minutos!</p>
+                </div>
+                <!-- Step Indicator -->
                 <div class="mb-8 flex justify-between items-center">
                     <div class="flex-1"><div class="w-full bg-gray-200 rounded-full h-2"><div id="progress-bar" class="bg-emerald-600 h-2 rounded-full transition-all duration-500" style="width: 25%;"></div></div></div>
                     <div id="step-counter" class="ml-4 text-sm font-semibold text-emerald-600">Paso 1 de 4</div>
@@ -64,7 +86,6 @@
                 <div id="form-nav" class="mt-10 flex justify-between items-center"><button type="button" id="prev-btn" class="bg-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-300 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Anterior</button><button type="button" id="next-btn" class="bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 transition duration-300">Siguiente</button><button type="submit" id="submit-btn" class="bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 transition duration-300 hidden w-48 flex items-center justify-center"><span class="btn-text">Enviar Solicitud</span><span class="spinner hidden ml-2"></span></button></div>
             </form>
         </div>
-        <div class="text-center mt-6"><a href="index.html" class="text-sm text-gray-600 hover:text-emerald-600">&larr; Volver a la página principal</a></div>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -99,12 +120,30 @@
                 submitBtn.disabled = true;
                 submitBtnText.classList.add('hidden');
                 spinner.classList.remove('hidden');
+                const formData = new FormData(form);
+                const data = {};
+                for (let [key, value] of formData.entries()) {
+                    const input = form.querySelector(`[name="${key}"]`);
+                    if (input && (input.classList.contains('money-input') || input.type === 'tel')) {
+                        data[key] = unformatNumber(value);
+                    } else {
+                        data[key] = value;
+                    }
+                }
                 try {
-                    console.log("Simulando envío de formulario...");
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    console.log("Simulación exitosa.");
-                    currentStep++;
-                    updateFormSteps();
+                    const response = await fetch('/api/enviar-calificacion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                    });
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const result = await response.json();
+                    if(result.success) {
+                        currentStep++;
+                        updateFormSteps();
+                    } else {
+                        throw new Error('API returned an error');
+                    }
                 } catch (error) {
                     console.error('Submission failed:', error);
                     showErrorConfirmation();
@@ -130,10 +169,19 @@
                 geminiResultDiv.innerHTML = `<div class="loading-dots text-center"><span class="text-emerald-600 text-3xl">.</span><span class="text-emerald-600 text-3xl">.</span><span class="text-emerald-600 text-3xl">.</span></div>`;
                 geminiResultDiv.classList.remove('hidden');
                 try {
-                    console.log("Simulando análisis de Gemini...");
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    const sampleAnalysis = `¡Buenas noticias! Refinanciar podría ser una excelente decisión.\n\nEstimamos que podrías calificar para una nueva tasa de interés de alrededor del 10.2%, lo que podría significar un **ahorro mensual de aproximadamente $1,850 MXN**.\n\nA lo largo de la vida del crédito, ¡esto podría representar un ahorro de más de $440,000 MXN!\n\nCompleta el formulario para que un asesor te dé los detalles exactos.`;
-                    geminiResultDiv.innerHTML = sampleAnalysis.replace(/\n/g, '<br>');
+                    const data = {
+                        currentBalance: unformatNumber(document.getElementById('currentBalance').value),
+                        currentInterestRate: document.getElementById('currentInterestRate').value,
+                        monthlyIncome: unformatNumber(document.getElementById('monthlyIncome').value)
+                    };
+                    const response = await fetch('/api/analizar-escenario', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) throw new Error('API call failed');
+                    const result = await response.json();
+                    geminiResultDiv.innerHTML = result.analysis.replace(/\n/g, '<br>');
                 } catch (error) {
                     console.error("Gemini analysis failed:", error);
                     geminiResultDiv.innerHTML = `<p class="text-red-600">No pudimos generar el análisis en este momento. Por favor, intente más tarde.</p>`;
