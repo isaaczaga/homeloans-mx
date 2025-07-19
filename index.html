@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HomeLoans.mx - Su Guía para Créditos Hipotecarios en México</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; }
         .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #059669; cursor: pointer; border-radius: 50%; }
@@ -23,35 +30,63 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
+    <!-- Header -->
     <header class="bg-white shadow-sm sticky top-0 z-50">
         <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="index.html" class="text-2xl font-bold text-emerald-600">HomeLoans.mx</a>
+            <!-- CAMBIO: Logo SVG añadido -->
+            <a href="index.html" class="flex items-center space-x-2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/>
+                    <path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 12V16H15V10L9 12Z" fill="#059669"/>
+                </svg>
+                <span class="text-2xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
+            </a>
             <div class="hidden md:flex items-center space-x-6">
                 <a href="index.html#calculator" class="text-gray-600 hover:text-emerald-600">Calculadora</a>
                 <a href="quienes-somos.html" class="text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
                 <a href="blog.html" class="text-gray-600 hover:text-emerald-600">Recursos</a>
                 <a href="pre-calificacion.html" class="text-gray-600 hover:text-emerald-600">Contacto</a>
             </div>
-            <a href="pre-calificacion.html" class="hidden md:inline-block bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">Pre-calificar Ahora</a>
-            <button id="mobile-menu-button" class="md:hidden"><i data-lucide="menu"></i></button>
+            <a href="pre-calificacion.html" class="hidden md:inline-block bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">
+                Pre-calificar Ahora
+            </a>
+            <button id="mobile-menu-button" class="md:hidden">
+                <i data-lucide="menu"></i>
+            </button>
         </nav>
+        <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
             <a href="index.html#calculator" class="block py-2 text-gray-600 hover:text-emerald-600">Calculadora</a>
             <a href="quienes-somos.html" class="block py-2 text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
             <a href="blog.html" class="block py-2 text-gray-600 hover:text-emerald-600">Recursos</a>
             <a href="pre-calificacion.html" class="block py-2 text-gray-600 hover:text-emerald-600">Contacto</a>
-            <a href="pre-calificacion.html" class="mt-4 block w-full text-center bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">Pre-calificar Ahora</a>
+            <a href="pre-calificacion.html" class="mt-4 block w-full text-center bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">
+                Pre-calificar Ahora
+            </a>
         </div>
     </header>
 
+    <!-- Main Content -->
     <main>
+        <!-- Hero Section -->
         <section class="bg-white">
             <div class="container mx-auto px-6 py-20 md:py-32 text-center">
-                <h1 class="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight">El camino <span class="text-emerald-600">más simple</span> a su crédito hipotecario en México.</h1>
-                <p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">Comparamos las ofertas de más de 10 bancos para encontrarle la mejor tasa. Asesoría experta en español e inglés.</p>
-                <div class="mt-10"><a href="#calculator" class="bg-emerald-600 text-white font-bold text-lg px-8 py-4 rounded-lg hover:bg-emerald-700 transition duration-300 shadow-lg">Calcular mi pago mensual</a></div>
+                <h1 class="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight">
+                    El camino <span class="text-emerald-600">más simple</span> a su crédito hipotecario en México.
+                </h1>
+                <p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                    Comparamos las ofertas de más de 10 bancos para encontrarle la mejor tasa. Asesoría experta en español e inglés.
+                </p>
+                <div class="mt-10">
+                    <a href="#calculator" class="bg-emerald-600 text-white font-bold text-lg px-8 py-4 rounded-lg hover:bg-emerald-700 transition duration-300 shadow-lg">
+                        Calcular mi pago mensual
+                    </a>
+                </div>
             </div>
         </section>
+
+        <!-- How It Works Section -->
         <section id="process" class="py-20">
             <div class="container mx-auto px-6">
                 <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Su crédito en 3 simples pasos</h2><p class="mt-4 text-gray-600">Hacemos el proceso rápido y transparente.</p></div>
@@ -62,6 +97,8 @@
                 </div>
             </div>
         </section>
+
+        <!-- Mortgage Calculator Section -->
         <section id="calculator" class="bg-white py-20">
             <div class="container mx-auto px-6">
                 <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Calculadora de Pagos Mensuales</h2><p class="mt-4 text-gray-600">Estime su pago mensual y vea el poder de una buena tasa de interés.</p></div>
@@ -87,6 +124,8 @@
                 </div>
             </div>
         </section>
+
+        <!-- Testimonials Section -->
         <section id="testimonials" class="py-20">
             <div class="container mx-auto px-6">
                 <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Lo que dicen nuestros clientes</h2></div>
@@ -97,6 +136,8 @@
                 </div>
             </div>
         </section>
+
+        <!-- Partner Banks Section -->
         <section class="bg-white py-16">
             <div class="container mx-auto px-6">
                 <h3 class="text-center text-gray-500 text-sm font-bold uppercase tracking-wider mb-8">Trabajamos con los principales bancos de México</h3>
@@ -108,6 +149,8 @@
                 </div>
             </div>
         </section>
+
+        <!-- Contact / CTA Section -->
         <section id="contact" class="bg-emerald-700 text-white">
             <div class="container mx-auto px-6 py-20 text-center">
                 <h2 class="text-3xl md:text-4xl font-bold">¿Listo para encontrar su crédito ideal?</h2>
@@ -117,6 +160,7 @@
         </section>
     </main>
 
+    <!-- Footer -->
     <footer class="bg-gray-800 text-white">
         <div class="container mx-auto px-6 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
