@@ -15,7 +15,10 @@
 
     <header class="bg-white shadow-sm sticky top-0 z-50">
         <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="index.html" class="text-2xl font-bold text-emerald-600">HomeLoans.mx</a>
+            <a href="index.html" class="flex items-center space-x-2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                <span class="text-2xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
+            </a>
             <div class="hidden md:flex items-center space-x-6">
                 <a href="index.html#calculator" class="text-gray-600 hover:text-emerald-600">Calculadora</a>
                 <a href="quienes-somos.html" class="text-emerald-600 font-semibold">Quiénes Somos</a>
@@ -62,6 +65,5 @@
         const mobileMenu = document.getElementById('mobile-menu');
         mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
     </script>
-
 </body>
 </html>
