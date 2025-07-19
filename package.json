@@ -1,0 +1,14 @@
+  {
+    "name": "homeloans-mx",
+    "version": "1.0.0",
+    "description": "Sitio web para HomeLoans.mx, un bróker hipotecario en México.",
+    "main": "index.html",
+    "scripts": {
+      "start": "echo \"No hay un script de inicio definido. Despliega esto en una plataforma como Vercel o Netlify.\""
+    },
+    "author": "I. Zaga",
+    "license": "UNLICENSED",
+    "dependencies": {
+      "nodemailer": "^6.9.14"
+    }
+  }

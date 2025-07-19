@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomeLoans.mx - Su Guía para Créditos Hipotecarios en México</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #059669; cursor: pointer; border-radius: 50%; }
+        .slider-thumb::-moz-range-thumb { width: 20px; height: 20px; background: #059669; cursor: pointer; border-radius: 50%; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .loading-dots span { animation: blink 1.4s infinite both; }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-bold text-emerald-600">HomeLoans.mx</a>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="index.html#calculator" class="text-gray-600 hover:text-emerald-600">Calculadora</a>
+                <a href="quienes-somos.html" class="text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
+                <a href="blog.html" class="text-gray-600 hover:text-emerald-600">Recursos</a>
+                <a href="pre-calificacion.html" class="text-gray-600 hover:text-emerald-600">Contacto</a>
+            </div>
+            <a href="pre-calificacion.html" class="hidden md:inline-block bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">Pre-calificar Ahora</a>
+            <button id="mobile-menu-button" class="md:hidden"><i data-lucide="menu"></i></button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
+            <a href="index.html#calculator" class="block py-2 text-gray-600 hover:text-emerald-600">Calculadora</a>
+            <a href="quienes-somos.html" class="block py-2 text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
+            <a href="blog.html" class="block py-2 text-gray-600 hover:text-emerald-600">Recursos</a>
+            <a href="pre-calificacion.html" class="block py-2 text-gray-600 hover:text-emerald-600">Contacto</a>
+            <a href="pre-calificacion.html" class="mt-4 block w-full text-center bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">Pre-calificar Ahora</a>
+        </div>
+    </header>
+
+    <main>
+        <section class="bg-white">
+            <div class="container mx-auto px-6 py-20 md:py-32 text-center">
+                <h1 class="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight">El camino <span class="text-emerald-600">más simple</span> a su crédito hipotecario en México.</h1>
+                <p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">Comparamos las ofertas de más de 10 bancos para encontrarle la mejor tasa. Asesoría experta en español e inglés.</p>
+                <div class="mt-10"><a href="#calculator" class="bg-emerald-600 text-white font-bold text-lg px-8 py-4 rounded-lg hover:bg-emerald-700 transition duration-300 shadow-lg">Calcular mi pago mensual</a></div>
+            </div>
+        </section>
+        <section id="process" class="py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Su crédito en 3 simples pasos</h2><p class="mt-4 text-gray-600">Hacemos el proceso rápido y transparente.</p></div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+                    <div class="bg-white p-8 rounded-xl shadow-md"><div class="bg-emerald-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6"><i data-lucide="file-text" class="text-emerald-600 w-8 h-8"></i></div><h3 class="text-xl font-semibold mb-2">1. Pre-califique</h3><p class="text-gray-600">Complete nuestro formulario en 5 minutos para saber cuánto le pueden prestar.</p></div>
+                    <div class="bg-white p-8 rounded-xl shadow-md"><div class="bg-emerald-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6"><i data-lucide="bar-chart-3" class="text-emerald-600 w-8 h-8"></i></div><h3 class="text-xl font-semibold mb-2">2. Compare Ofertas</h3><p class="text-gray-600">Analizamos y le presentamos las mejores opciones de crédito del mercado.</p></div>
+                    <div class="bg-white p-8 rounded-xl shadow-md"><div class="bg-emerald-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6"><i data-lucide="key-round" class="text-emerald-600 w-8 h-8"></i></div><h3 class="text-xl font-semibold mb-2">3. Reciba su Crédito</h3><p class="text-gray-600">Le guiamos en todo el papeleo hasta la firma y entrega de su nuevo hogar.</p></div>
+                </div>
+            </div>
+        </section>
+        <section id="calculator" class="bg-white py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Calculadora de Pagos Mensuales</h2><p class="mt-4 text-gray-600">Estime su pago mensual y vea el poder de una buena tasa de interés.</p></div>
+                <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                    <div class="space-y-6">
+                        <div><label for="loanAmount" class="font-semibold">Monto del Préstamo (MXN)</label><div class="flex items-center mt-2"><span class="text-gray-500 mr-2">$</span><input type="tel" id="loanAmount" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" value="2,000,000"></div><input type="range" id="loanAmountSlider" min="100000" max="50000000" step="50000" value="2000000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2"></div>
+                        <div><label for="interestRate" class="font-semibold">Tasa de Interés Anual (%)</label><div class="flex items-center mt-2"><input type="number" id="interestRate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" value="10.5" step="0.1"><span class="text-gray-500 ml-2">%</span></div><input type="range" id="interestRateSlider" min="8" max="15" step="0.1" value="10.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2"></div>
+                        <div><label for="loanTerm" class="font-semibold">Plazo del Préstamo (Años)</label><div class="flex items-center mt-2"><input type="number" id="loanTerm" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" value="20"><span class="text-gray-500 ml-2">Años</span></div><input type="range" id="loanTermSlider" min="5" max="30" step="1" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2"></div>
+                    </div>
+                    <div class="bg-emerald-600 text-white p-8 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold mb-6 text-center">Su Pago Mensual Estimado:</h3>
+                        <div class="text-center mb-8"><span id="monthlyPayment" class="text-5xl font-extrabold">$19,970.46</span></div>
+                        <div class="space-y-4 text-emerald-100">
+                            <div class="flex justify-between"><span>Monto del Préstamo:</span><span id="summaryLoanAmount" class="font-semibold">$2,000,000.00</span></div>
+                            <div class="flex justify-between"><span>Interés Total Pagado:</span><span id="summaryTotalInterest" class="font-semibold">$2,792,909.57</span></div>
+                            <div class="flex justify-between border-t border-emerald-500 pt-4 mt-4"><span class="font-bold">Costo Total del Crédito:</span><span id="summaryTotalPayment" class="font-bold text-lg">$4,792,909.57</span></div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <button type="button" id="analyze-calculator-btn" class="w-full bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-emerald-800 transition duration-300 shadow-md">✨ Explícame estos resultados</button>
+                            <div id="gemini-calculator-result" class="hidden mt-4 p-4 bg-emerald-700 rounded-lg text-emerald-100 text-left"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="testimonials" class="py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Lo que dicen nuestros clientes</h2></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="bg-white p-8 rounded-xl shadow-md"><p class="text-gray-600 mb-6">"Como extranjero, el proceso parecía imposible. El equipo de HomeLoans.mx lo hizo increíblemente fácil y me consiguieron una tasa fantástica. ¡Totalmente recomendados!"</p><div class="flex items-center"><img src="https://placehold.co/48x48/E2E8F0/4A5568?text=JS" alt="" class="w-12 h-12 rounded-full mr-4"><div><p class="font-semibold">John S.</p><p class="text-sm text-gray-500">Comprador de EE. UU.</p></div></div></div>
+                    <div class="bg-white p-8 rounded-xl shadow-md"><p class="text-gray-600 mb-6">"Pensé que mi banco me daba la mejor opción, pero me encontraron una oferta 1.5% más baja. ¡Me ahorraron miles de pesos! El servicio fue rápido y muy profesional."</p><div class="flex items-center"><img src="https://placehold.co/48x48/E2E8F0/4A5568?text=LG" alt="" class="w-12 h-12 rounded-full mr-4"><div><p class="font-semibold">Laura G.</p><p class="text-sm text-gray-500">Compradora en CDMX</p></div></div></div>
+                    <div class="bg-white p-8 rounded-xl shadow-md"><p class="text-gray-600 mb-6">"El proceso de refinanciamiento fue transparente y sin complicaciones. Su calculadora en línea fue muy útil para entender mis ahorros potenciales desde el principio."</p><div class="flex items-center"><img src="https://placehold.co/48x48/E2E8F0/4A5568?text=RC" alt="" class="w-12 h-12 rounded-full mr-4"><div><p class="font-semibold">Ricardo C.</p><p class="text-sm text-gray-500">Refinanciamiento en Monterrey</p></div></div></div>
+                </div>
+            </div>
+        </section>
+        <section class="bg-white py-16">
+            <div class="container mx-auto px-6">
+                <h3 class="text-center text-gray-500 text-sm font-bold uppercase tracking-wider mb-8">Trabajamos con los principales bancos de México</h3>
+                <div class="flex flex-wrap justify-center items-center gap-x-8 md:gap-x-12 gap-y-4">
+                    <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=Santander" alt="[Logo de Santander]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
+                    <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=Banorte" alt="[Logo de Banorte]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
+                    <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=HSBC" alt="[Logo de HSBC]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
+                    <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=Scotiabank" alt="[Logo de Scotiabank]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
+                </div>
+            </div>
+        </section>
+        <section id="contact" class="bg-emerald-700 text-white">
+            <div class="container mx-auto px-6 py-20 text-center">
+                <h2 class="text-3xl md:text-4xl font-bold">¿Listo para encontrar su crédito ideal?</h2>
+                <p class="mt-4 text-emerald-200 max-w-2xl mx-auto">Dé el primer paso hoy. Nuestra asesoría es gratuita y sin compromiso. Permítanos ayudarle a navegar el mercado hipotecario mexicano.</p>
+                <div class="mt-10"><a href="pre-calificacion.html" class="bg-white text-emerald-700 font-bold text-lg px-8 py-4 rounded-lg hover:bg-gray-100 transition duration-300 shadow-lg">Iniciar mi Pre-calificación</a></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white">
+        <div class="container mx-auto px-6 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div><h4 class="text-xl font-bold text-emerald-400">HomeLoans.mx</h4><p class="mt-4 text-gray-400">Simplificando los créditos hipotecarios en México.</p></div>
+                <div><h5 class="font-semibold tracking-wider uppercase">Navegación</h5><ul class="mt-4 space-y-2"><li><a href="index.html" class="text-gray-400 hover:text-white">Inicio</a></li><li><a href="quienes-somos.html" class="text-gray-400 hover:text-white">Quiénes Somos</a></li><li><a href="blog.html" class="text-gray-400 hover:text-white">Recursos</a></li><li><a href="pre-calificacion.html" class="text-gray-400 hover:text-white">Pre-calificación</a></li></ul></div>
+                <div><h5 class="font-semibold tracking-wider uppercase">Legal</h5><ul class="mt-4 space-y-2"><li><a href="aviso-de-privacidad.html" class="text-gray-400 hover:text-white">Aviso de Privacidad</a></li><li><a href="terminos-y-condiciones.html" class="text-gray-400 hover:text-white">Términos y Condiciones</a></li></ul></div>
+                <div><h5 class="font-semibold tracking-wider uppercase">Contacto</h5><ul class="mt-4 space-y-2 text-gray-400"><li><a href="mailto:i-zaga@creditaria.com" class="hover:text-white">i-zaga@creditaria.com</a></li></ul></div>
+            </div>
+            <div class="mt-10 border-t border-gray-700 pt-8 text-center text-gray-500"><p>&copy; 2025 HomeLoans.mx - Todos los derechos reservados.</p></div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/5215500000000?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
+
+    <script>
+        lucide.createIcons();
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
+        const loanAmountInput = document.getElementById('loanAmount');
+        const loanAmountSlider = document.getElementById('loanAmountSlider');
+        const interestRateInput = document.getElementById('interestRate');
+        const interestRateSlider = document.getElementById('interestRateSlider');
+        const loanTermInput = document.getElementById('loanTerm');
+        const loanTermSlider = document.getElementById('loanTermSlider');
+        const monthlyPaymentEl = document.getElementById('monthlyPayment');
+        const summaryLoanAmountEl = document.getElementById('summaryLoanAmount');
+        const summaryTotalInterestEl = document.getElementById('summaryTotalInterest');
+        const summaryTotalPaymentEl = document.getElementById('summaryTotalPayment');
+        const analyzeCalculatorBtn = document.getElementById('analyze-calculator-btn');
+        const geminiCalculatorResultDiv = document.getElementById('gemini-calculator-result');
+        const formatNumber = (value) => { if (!value) return ''; const numberValue = value.toString().replace(/[^\d]/g, ''); return numberValue.replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+        const unformatNumber = (value) => { return value.toString().replace(/,/g, ''); };
+        const formatCurrency = (num) => { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num); };
+        function calculateMortgage() {
+            const L = parseFloat(unformatNumber(loanAmountInput.value));
+            const annualRate = parseFloat(interestRateInput.value);
+            const years = parseInt(loanTermInput.value);
+            if (isNaN(L) || isNaN(annualRate) || isNaN(years) || L <= 0 || annualRate <= 0 || years <= 0) { return; }
+            const c = annualRate / 100 / 12;
+            const n = years * 12;
+            const monthlyPayment = L * (c * Math.pow(1 + c, n)) / (Math.pow(1 + c, n) - 1);
+            const totalPayment = monthlyPayment * n;
+            const totalInterest = totalPayment - L;
+            monthlyPaymentEl.textContent = formatCurrency(monthlyPayment);
+            summaryLoanAmountEl.textContent = formatCurrency(L);
+            summaryTotalInterestEl.textContent = formatCurrency(totalInterest);
+            summaryTotalPaymentEl.textContent = formatCurrency(totalPayment);
+        }
+        analyzeCalculatorBtn.addEventListener('click', async () => {
+            geminiCalculatorResultDiv.innerHTML = `<div class="loading-dots text-center"><span class="text-white text-3xl">.</span><span class="text-white text-3xl">.</span><span class="text-white text-3xl">.</span></div>`;
+            geminiCalculatorResultDiv.classList.remove('hidden');
+            const data = { loanAmount: summaryLoanAmountEl.textContent, monthlyPayment: monthlyPaymentEl.textContent, loanTerm: loanTermInput.value, totalInterest: summaryTotalInterestEl.textContent };
+            try {
+                console.log("Simulando análisis de calculadora con Gemini...");
+                await new Promise(resolve => setTimeout(resolve, 1500)); 
+                const sampleAnalysis = `¡Claro! Aquí tienes una explicación simple de tus resultados:<br><br>Tu pago mensual de <strong>${data.monthlyPayment}</strong> es la cantidad clave que deberás integrar en tu presupuesto. Es como el alquiler, pero cada pago construye tu propio patrimonio.<br><br>El interés total de <strong>${data.totalInterest}</strong> puede parecer alto, pero piensa en ello como el costo de usar el dinero del banco durante ${data.loanTerm} años para asegurar tu casa hoy. ¡Es una inversión a largo plazo en tu futuro!<br><br>Este es un gran primer paso hacia la compra de tu hogar.`;
+                geminiCalculatorResultDiv.innerHTML = sampleAnalysis;
+            } catch (error) {
+                geminiCalculatorResultDiv.innerHTML = `<p class="text-red-300">No pudimos generar el análisis. Inténtalo de nuevo.</p>`;
+            }
+        });
+        loanAmountSlider.addEventListener('input', (e) => { loanAmountInput.value = formatNumber(e.target.value); calculateMortgage(); });
+        loanAmountInput.addEventListener('input', (e) => { const unformattedValue = unformatNumber(e.target.value); loanAmountSlider.value = unformattedValue; e.target.value = formatNumber(unformattedValue); calculateMortgage(); });
+        interestRateSlider.addEventListener('input', (e) => { interestRateInput.value = e.target.value; calculateMortgage(); });
+        interestRateInput.addEventListener('input', (e) => { interestRateSlider.value = e.target.value; calculateMortgage(); });
+        loanTermSlider.addEventListener('input', (e) => { loanTermInput.value = e.target.value; calculateMortgage(); });
+        loanTermInput.addEventListener('input', (e) => { loanTermSlider.value = e.target.value; calculateMortgage(); });
+        window.addEventListener('load', () => { loanAmountInput.value = formatNumber(loanAmountInput.value); calculateMortgage(); });
+    </script>
+</body>
+</html>

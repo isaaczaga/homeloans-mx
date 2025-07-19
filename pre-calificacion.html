@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-calificación - HomeLoans.mx</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number], input[type=tel] { -moz-appearance: textfield; }
+        .spinner { border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; }
+        .loading-dots span { animation: blink 1.4s infinite both; }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen py-12">
+
+    <div class="container mx-auto p-4 max-w-2xl">
+        <div class="bg-white rounded-2xl shadow-xl">
+            <div class="p-8 border-b border-gray-200">
+                <h1 class="text-3xl font-bold text-gray-900">Formulario de Pre-calificación</h1>
+                <p class="mt-2 text-gray-600">Complete los siguientes pasos para iniciar. ¡Solo toma 5 minutos!</p>
+            </div>
+            <form id="prequal-form" class="p-8">
+                <div class="mb-8 flex justify-between items-center">
+                    <div class="flex-1"><div class="w-full bg-gray-200 rounded-full h-2"><div id="progress-bar" class="bg-emerald-600 h-2 rounded-full transition-all duration-500" style="width: 25%;"></div></div></div>
+                    <div id="step-counter" class="ml-4 text-sm font-semibold text-emerald-600">Paso 1 de 4</div>
+                </div>
+                <div id="step-1" class="form-step active-step">
+                    <h2 class="text-2xl font-semibold mb-6">Detalles del Crédito</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="font-medium text-gray-700">Propósito del crédito</label>
+                            <div id="loan-purpose-choices" class="mt-2 grid grid-cols-2 gap-4">
+                                <button type="button" data-value="compra" class="form-choice-btn active-choice w-full p-4 border rounded-lg text-center">Comprar</button>
+                                <button type="button" data-value="refinanciamiento" class="form-choice-btn w-full p-4 border rounded-lg text-center">Refinanciar</button>
+                            </div>
+                            <input type="hidden" id="loanPurpose" name="loanPurpose" value="compra">
+                        </div>
+                        <div><label for="propertyValue" class="font-medium text-gray-700">Valor aproximado de la propiedad (MXN)</label><input type="tel" id="propertyValue" name="propertyValue" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" placeholder="Ej: 3,000,000" required></div>
+                        <div id="purchase-fields"><label for="downPayment" class="font-medium text-gray-700">Enganche (MXN)</label><input type="tel" id="downPayment" name="downPayment" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" placeholder="Ej: 600,000" required></div>
+                        <div id="refinance-fields" class="hidden space-y-6">
+                            <div><label for="currentBalance" class="font-medium text-gray-700">Saldo actual (MXN)</label><input type="tel" id="currentBalance" name="currentBalance" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input refinance-input" placeholder="Ej: 1,800,000"></div>
+                            <div><label for="currentInterestRate" class="font-medium text-gray-700">Tasa de interés actual (%)</label><input type="number" id="currentInterestRate" name="currentInterestRate" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 refinance-input" placeholder="Ej: 11.5" step="0.01"></div>
+                            <div><label for="currentBank" class="font-medium text-gray-700">Banco al que se le debe</label><input type="text" id="currentBank" name="currentBank" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 refinance-input" placeholder="Ej: Banco XYZ"></div>
+                            <div class="pt-2">
+                                <button type="button" id="analyze-btn" class="hidden w-full bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:from-teal-600 hover:to-emerald-700 transition duration-300 shadow-md">✨ Analizar mi potencial de ahorro</button>
+                                <div id="gemini-result" class="hidden mt-4 p-4 border-l-4 border-emerald-500 bg-emerald-50 rounded-r-lg"><div class="loading-dots text-center"><span class="text-emerald-600 text-3xl">.</span><span class="text-emerald-600 text-3xl">.</span><span class="text-emerald-600 text-3xl">.</span></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="step-2" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Información de Contacto</h2><div class="space-y-6"><div><label for="fullName" class="font-medium text-gray-700">Nombre Completo</label><input type="text" id="fullName" name="fullName" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Su nombre" required></div><div><label for="email" class="font-medium text-gray-700">Correo Electrónico</label><input type="email" id="email" name="email" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="su@email.com" required></div><div><label for="phone" class="font-medium text-gray-700">Teléfono</label><input type="tel" id="phone" name="phone" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="55 1234 5678" required></div></div></div>
+                <div id="step-3" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Perfil Financiero</h2><div class="space-y-6"><div><label for="monthlyIncome" class="font-medium text-gray-700">Ingreso mensual bruto (MXN)</label><input type="tel" id="monthlyIncome" name="monthlyIncome" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input refinance-input" placeholder="Ej: 50,000" required></div><div><label class="font-medium text-gray-700">¿Cómo califica su historial de crédito?</label><div id="credit-score-choices" class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4"><button type="button" data-value="excelente" class="form-choice-btn w-full p-4 border rounded-lg text-center">Excelente</button><button type="button" data-value="bueno" class="form-choice-btn active-choice w-full p-4 border rounded-lg text-center">Bueno</button><button type="button" data-value="regular" class="form-choice-btn w-full p-4 border rounded-lg text-center">Regular</button></div><input type="hidden" id="creditScore" name="creditScore" value="bueno"></div></div></div>
+                <div id="step-4" class="form-step hidden text-center"><div class="bg-emerald-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle-2" class="text-emerald-600 w-16 h-16"></i></div><h2 id="confirmation-title" class="text-2xl font-bold text-gray-900">¡Gracias! Hemos recibido su información.</h2><p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">Un asesor experto se pondrá en contacto con usted dentro de las próximas 24 horas para revisar sus opciones.</p></div>
+                <div id="form-nav" class="mt-10 flex justify-between items-center"><button type="button" id="prev-btn" class="bg-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-300 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Anterior</button><button type="button" id="next-btn" class="bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 transition duration-300">Siguiente</button><button type="submit" id="submit-btn" class="bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 transition duration-300 hidden w-48 flex items-center justify-center"><span class="btn-text">Enviar Solicitud</span><span class="spinner hidden ml-2"></span></button></div>
+            </form>
+        </div>
+        <div class="text-center mt-6"><a href="index.html" class="text-sm text-gray-600 hover:text-emerald-600">&larr; Volver a la página principal</a></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            const steps = Array.from(document.querySelectorAll('.form-step'));
+            const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const submitBtn = document.getElementById('submit-btn');
+            const form = document.getElementById('prequal-form');
+            const progressBar = document.getElementById('progress-bar');
+            const stepCounter = document.getElementById('step-counter');
+            const formNav = document.getElementById('form-nav');
+            const loanPurposeChoices = document.getElementById('loan-purpose-choices');
+            const purchaseFields = document.getElementById('purchase-fields');
+            const refinanceFields = document.getElementById('refinance-fields');
+            const confirmationTitle = document.getElementById('confirmation-title');
+            const confirmationMessage = document.getElementById('confirmation-message');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const geminiResultDiv = document.getElementById('gemini-result');
+            const refinanceInputs = document.querySelectorAll('.refinance-input');
+            let currentStep = 0;
+            const totalSteps = steps.filter(s => !s.id.includes('4')).length;
+            const formatNumber = (value) => value ? value.toString().replace(/[^\d.]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+            const unformatNumber = (value) => value.toString().replace(/,/g, '');
+            nextBtn.addEventListener('click', () => { if (validateStep(currentStep)) { currentStep++; updateFormSteps(); } });
+            prevBtn.addEventListener('click', () => { currentStep--; updateFormSteps(); });
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!validateStep(currentStep)) return;
+                const submitBtnText = submitBtn.querySelector('.btn-text');
+                const spinner = submitBtn.querySelector('.spinner');
+                submitBtn.disabled = true;
+                submitBtnText.classList.add('hidden');
+                spinner.classList.remove('hidden');
+                try {
+                    console.log("Simulando envío de formulario...");
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    console.log("Simulación exitosa.");
+                    currentStep++;
+                    updateFormSteps();
+                } catch (error) {
+                    console.error('Submission failed:', error);
+                    showErrorConfirmation();
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtnText.classList.remove('hidden');
+                    spinner.classList.add('hidden');
+                }
+            });
+            document.querySelectorAll('.form-choice-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const parent = button.parentElement;
+                    const hiddenInput = parent.nextElementSibling;
+                    parent.querySelectorAll('.form-choice-btn').forEach(btn => btn.classList.remove('active-choice', 'bg-emerald-100', 'border-emerald-500', 'text-emerald-700', 'font-semibold'));
+                    button.classList.add('active-choice', 'bg-emerald-100', 'border-emerald-500', 'text-emerald-700', 'font-semibold');
+                    if (hiddenInput) hiddenInput.value = button.dataset.value;
+                    if(parent.id === 'loan-purpose-choices') toggleLoanPurposeFields(button.dataset.value);
+                });
+            });
+            document.querySelectorAll('.money-input').forEach(input => { input.addEventListener('input', (e) => e.target.value = formatNumber(e.target.value)); });
+            refinanceInputs.forEach(input => { input.addEventListener('input', checkRefinanceFields); });
+            analyzeBtn.addEventListener('click', async () => {
+                geminiResultDiv.innerHTML = `<div class="loading-dots text-center"><span class="text-emerald-600 text-3xl">.</span><span class="text-emerald-600 text-3xl">.</span><span class="text-emerald-600 text-3xl">.</span></div>`;
+                geminiResultDiv.classList.remove('hidden');
+                try {
+                    console.log("Simulando análisis de Gemini...");
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    const sampleAnalysis = `¡Buenas noticias! Refinanciar podría ser una excelente decisión.\n\nEstimamos que podrías calificar para una nueva tasa de interés de alrededor del 10.2%, lo que podría significar un **ahorro mensual de aproximadamente $1,850 MXN**.\n\nA lo largo de la vida del crédito, ¡esto podría representar un ahorro de más de $440,000 MXN!\n\nCompleta el formulario para que un asesor te dé los detalles exactos.`;
+                    geminiResultDiv.innerHTML = sampleAnalysis.replace(/\n/g, '<br>');
+                } catch (error) {
+                    console.error("Gemini analysis failed:", error);
+                    geminiResultDiv.innerHTML = `<p class="text-red-600">No pudimos generar el análisis en este momento. Por favor, intente más tarde.</p>`;
+                }
+            });
+            function checkRefinanceFields() {
+                const currentBalance = document.getElementById('currentBalance').value;
+                const currentInterestRate = document.getElementById('currentInterestRate').value;
+                const monthlyIncome = document.getElementById('monthlyIncome').value;
+                if (currentBalance && currentInterestRate && monthlyIncome) { analyzeBtn.classList.remove('hidden'); } else { analyzeBtn.classList.add('hidden'); geminiResultDiv.classList.add('hidden'); }
+            }
+            function toggleLoanPurposeFields(purpose) {
+                const isPurchase = purpose === 'compra';
+                purchaseFields.classList.toggle('hidden', !isPurchase);
+                refinanceFields.classList.toggle('hidden', isPurchase);
+                purchaseFields.querySelectorAll('input').forEach(i => i.required = isPurchase);
+                refinanceFields.querySelectorAll('input').forEach(i => i.required = !isPurchase);
+                checkRefinanceFields();
+            }
+            function updateFormSteps() {
+                steps.forEach((step, index) => step.classList.toggle('hidden', index !== currentStep));
+                const progress = ((currentStep + 1) / (totalSteps + 1)) * 100;
+                progressBar.style.width = `${progress}%`;
+                stepCounter.textContent = `Paso ${currentStep + 1} de ${totalSteps + 1}`;
+                prevBtn.disabled = currentStep === 0;
+                if (currentStep === totalSteps - 1) { nextBtn.classList.add('hidden'); submitBtn.classList.remove('hidden'); } else if (currentStep >= totalSteps) { formNav.classList.add('hidden'); stepCounter.textContent = `Completado`; } else { nextBtn.classList.remove('hidden'); submitBtn.classList.add('hidden'); }
+            }
+            function validateStep(stepIndex) {
+                const inputs = steps[stepIndex].querySelectorAll('input[required]');
+                let isValid = true;
+                inputs.forEach(input => {
+                    input.classList.remove('border-red-500');
+                    if (!input.value.trim()) { isValid = false; input.classList.add('border-red-500'); input.placeholder = "Este campo es obligatorio"; }
+                });
+                return isValid;
+            }
+            function showErrorConfirmation() {
+                confirmationTitle.textContent = "Ocurrió un Error";
+                confirmationMessage.textContent = "No pudimos procesar tu solicitud en este momento. Por favor, inténtalo de nuevo más tarde o contáctanos directamente.";
+                const iconContainer = document.getElementById('step-4').querySelector('div:first-child');
+                const icon = iconContainer ? iconContainer.querySelector('i') : null;
+                if (iconContainer && icon) {
+                    iconContainer.classList.remove('bg-emerald-100');
+                    iconContainer.classList.add('bg-red-100');
+                    icon.setAttribute('data-lucide', 'x-circle');
+                    icon.classList.remove('text-emerald-600');
+                    icon.classList.add('text-red-600');
+                    lucide.createIcons();
+                }
+                currentStep++;
+                updateFormSteps();
+            }
+            document.querySelectorAll('.active-choice').forEach(button => button.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-700', 'font-semibold'));
+            toggleLoanPurposeFields(document.getElementById('loanPurpose').value);
+        });
+    </script>
+</body>
+</html>
