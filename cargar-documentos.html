@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga de Documentos - HomeLoans.mx</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
+            </a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="py-12">
+        <div class="container mx-auto px-6 max-w-3xl">
+            <div class="bg-white rounded-2xl shadow-xl p-8">
+                <div class="text-center">
+                    <div class="inline-block bg-emerald-100 text-emerald-600 p-3 rounded-full mb-4">
+                        <i data-lucide="upload-cloud" class="w-10 h-10"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900">Carga Segura de Documentos</h1>
+                    <p class="mt-2 text-gray-600">¡Casi terminamos! Por favor, sube los siguientes documentos en formato PDF para completar tu expediente.</p>
+                </div>
+
+                <div class="mt-10 space-y-6" id="upload-list">
+                    <!-- Los documentos se generarán aquí con JS -->
+                </div>
+
+                <div class="mt-10 pt-6 border-t text-center">
+                    <button id="finish-btn" class="bg-emerald-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-emerald-700 transition duration-300 opacity-50 cursor-not-allowed" disabled>
+                        Finalizar y Enviar Expediente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <script type="module">
+        // Importa las funciones de Firebase que necesitas
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+        import { getFirestore, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // --- Configuración de Firebase ---
+        // En un despliegue real, estas claves vendrían de un lugar seguro.
+        const firebaseConfig = {
+            apiKey: "AIzaSyCK20Yfg05KcR0pP3wK27mpqJvMhw1E",
+            authDomain: "homeloan-app.firebaseapp.com",
+            projectId: "homeloan-app",
+            storageBucket: "homeloan-app.appspot.com",
+            messagingSenderId: "786916227313",
+            appId: "1:786916227313:web:888b16e41f4f94dbac1150"
+        };
+        
+        let app;
+        if (!getApps().length) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            app = getApps()[0];
+        }
+
+        const storage = getStorage(app);
+        const db = getFirestore(app);
+        lucide.createIcons();
+
+        const documents = [
+            { id: 'identificacion', name: 'INE o Pasaporte' },
+            { id: 'actaNacimiento', name: 'Acta de Nacimiento' },
+            { id: 'actaMatrimonio', name: 'Acta de Matrimonio (si aplica)' },
+            { id: 'compDomicilio', name: 'Comprobante de Domicilio' },
+            { id: 'csf', name: 'Constancia de Situación Fiscal (CSF)' },
+            { id: 'edosCuenta', name: 'Últimos 6 estados de cuenta' },
+            { id: 'recibosNomina', name: 'Últimos 6 recibos de nómina' },
+            { id: 'declaracionImpuestos', name: 'Última declaración de impuestos (si aplica)' },
+            { id: 'buro', name: 'Reporte de Buró de Crédito Especial' }
+        ];
+
+        const uploadList = document.getElementById('upload-list');
+        const finishBtn = document.getElementById('finish-btn');
+        const uploadedFiles = {};
+
+        // Obtener el ID de la solicitud desde la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const solicitudId = urlParams.get('id');
+
+        if (!solicitudId) {
+            uploadList.innerHTML = `<p class="text-red-500 text-center">Error: No se encontró un ID de solicitud. Por favor, complete primero el formulario de pre-calificación.</p>`;
+            finishBtn.style.display = 'none';
+        }
+
+        documents.forEach(doc => {
+            const docElement = document.createElement('div');
+            docElement.id = `doc-${doc.id}`;
+            docElement.className = 'bg-gray-50 p-4 rounded-lg border flex flex-col sm:flex-row items-center justify-between';
+            docElement.innerHTML = `
+                <div class="flex items-center mb-4 sm:mb-0">
+                    <i data-lucide="file-text" class="w-6 h-6 text-gray-400 mr-4"></i>
+                    <div>
+                        <p class="font-semibold text-gray-800">${doc.name}</p>
+                        <p class="text-xs text-gray-500" id="file-name-${doc.id}">Ningún archivo seleccionado</p>
+                    </div>
+                </div>
+                <div class="w-full sm:w-auto flex-shrink-0">
+                    <div class="file-input-wrapper bg-emerald-100 text-emerald-700 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-200 transition duration-300 cursor-pointer text-sm text-center">
+                        <span>Seleccionar PDF</span>
+                        <input type="file" id="input-${doc.id}" accept=".pdf">
+                    </div>
+                </div>
+                <div class="w-full mt-2 hidden" id="progress-container-${doc.id}">
+                    <div class="w-full bg-gray-200 rounded-full h-1.5">
+                        <div class="bg-emerald-600 h-1.5 rounded-full progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            uploadList.appendChild(docElement);
+            lucide.createIcons();
+
+            const input = docElement.querySelector(`#input-${doc.id}`);
+            input.addEventListener('change', (e) => handleFileUpload(e, doc));
+        });
+
+        async function handleFileUpload(e, doc) {
+            const file = e.target.files[0];
+            if (!file || !solicitudId) return;
+
+            if (file.type !== 'application/pdf') {
+                alert('Por favor, sube únicamente archivos en formato PDF.');
+                return;
+            }
+
+            const fileNameEl = document.getElementById(`file-name-${doc.id}`);
+            const progressContainer = document.getElementById(`progress-container-${doc.id}`);
+            const progressBar = progressContainer.querySelector('.progress-bar');
+            
+            fileNameEl.textContent = file.name;
+            progressContainer.classList.remove('hidden');
+
+            const storageRef = ref(storage, `solicitudes/${solicitudId}/${doc.id}.pdf`);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    progressBar.style.width = progress + '%';
+                }, 
+                (error) => {
+                    console.error("Error en la subida:", error);
+                    fileNameEl.textContent = "Error al subir";
+                    fileNameEl.classList.add('text-red-500');
+                }, 
+                async () => {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    console.log('Archivo disponible en', downloadURL);
+                    
+                    const docElement = document.getElementById(`doc-${doc.id}`);
+                    docElement.querySelector('.file-input-wrapper').parentElement.innerHTML = `<div class="flex items-center text-green-600"><i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Subido</div>`;
+                    lucide.createIcons();
+                    
+                    uploadedFiles[doc.id] = downloadURL;
+                    checkAllFilesUploaded();
+                }
+            );
+        }
+
+        function checkAllFilesUploaded() {
+            // Se activa cuando se suben los documentos obligatorios
+            if (uploadedFiles.identificacion && uploadedFiles.compDomicilio && uploadedFiles.csf && uploadedFiles.edosCuenta && uploadedFiles.recibosNomina && uploadedFiles.buro) {
+                finishBtn.disabled = false;
+                finishBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        finishBtn.addEventListener('click', async () => {
+            if (!solicitudId) return;
+            finishBtn.textContent = 'Guardando...';
+            finishBtn.disabled = true;
+
+            try {
+                const solicitudRef = doc(db, "solicitudes", solicitudId);
+                await updateDoc(solicitudRef, {
+                    documentos: uploadedFiles,
+                    estado: 'Expediente Completo'
+                });
+                
+                uploadList.innerHTML = `
+                    <div class="text-center py-10">
+                        <i data-lucide="party-popper" class="w-16 h-16 text-emerald-500 mx-auto"></i>
+                        <h2 class="text-2xl font-bold mt-4">¡Expediente Enviado!</h2>
+                        <p class="text-gray-600 mt-2">Hemos recibido todos tus documentos. Un asesor se pondrá en contacto contigo muy pronto para darte seguimiento. ¡Gracias por tu confianza!</p>
+                    </div>
+                `;
+                finishBtn.style.display = 'none';
+                lucide.createIcons();
+
+            } catch (error) {
+                console.error("Error al finalizar:", error);
+                alert("Ocurrió un error al guardar tu expediente. Por favor, intenta de nuevo.");
+                finishBtn.textContent = 'Finalizar y Enviar Expediente';
+                finishBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
