@@ -58,18 +58,14 @@
                 </div>
                 <div id="step-2" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Información de Contacto</h2><div class="space-y-6"><div><label for="fullName" class="font-medium text-gray-700">Nombre Completo</label><input type="text" id="fullName" name="fullName" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="email" class="font-medium text-gray-700">Correo Electrónico</label><input type="email" id="email" name="email" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="phone" class="font-medium text-gray-700">Teléfono (10 dígitos)</label><input type="tel" id="phone" name="phone" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div></div></div>
                 <div id="step-3" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Perfil Financiero</h2><div class="space-y-6"><div><label for="monthlyIncome" class="font-medium text-gray-700">Ingreso mensual bruto (MXN)</label><input type="tel" id="monthlyIncome" name="monthlyIncome" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" required></div><div><label class="font-medium text-gray-700">Historial de crédito</label><div id="credit-score-choices" class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4"><button type="button" data-value="excelente" class="form-choice-btn w-full p-4 border rounded-lg text-center">Excelente</button><button type="button" data-value="bueno" class="form-choice-btn active-choice w-full p-4 border rounded-lg text-center">Bueno</button><button type="button" data-value="regular" class="form-choice-btn w-full p-4 border rounded-lg text-center">Regular</button></div><input type="hidden" id="creditScore" name="creditScore" value="bueno"></div></div></div>
-                <!-- CAMBIO: Contenido de la pantalla de éxito actualizado -->
                 <div id="step-4" class="form-step hidden text-center">
                     <div class="bg-emerald-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle-2" class="text-emerald-600 w-16 h-16"></i></div>
-                    <h2 id="confirmation-title" class="text-2xl font-bold text-gray-900">¡Solicitud Recibida!</h2>
-                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">Haz clic en el botón para enviarnos un WhatsApp y confirmar tu solicitud. El siguiente paso será subir tus documentos.</p>
-                    <div class="mt-8 space-y-4">
+                    <h2 id="confirmation-title" class="text-2xl font-bold text-gray-900">¡Solicitud Exitosa!</h2>
+                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">¡Gracias por tu confianza! Hemos guardado tu información. El siguiente paso es confirmar por WhatsApp para solicitarte los documentos.</p>
+                    <div class="mt-8">
                         <a href="#" id="whatsapp-confirm-btn" target="_blank" class="bg-green-500 text-white font-semibold px-8 py-3 rounded-lg hover:bg-green-600 transition duration-300 inline-flex items-center">
                             <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>
-                            Confirmar por WhatsApp
-                        </a>
-                        <a href="#" id="upload-docs-btn" class="block w-full max-w-xs mx-auto text-emerald-600 font-semibold py-3 rounded-lg hover:bg-emerald-50 transition duration-300">
-                            Continuar a la Carga de Documentos
+                            Confirmar y Pedir Lista de Documentos
                         </a>
                     </div>
                 </div>
@@ -96,7 +92,6 @@
             const refinanceFields = document.getElementById('refinance-fields');
             const confirmationTitle = document.getElementById('confirmation-title');
             const confirmationMessage = document.getElementById('confirmation-message');
-            const uploadDocsBtn = document.getElementById('upload-docs-btn');
             const whatsappConfirmBtn = document.getElementById('whatsapp-confirm-btn');
 
             let currentStep = 0;
@@ -132,12 +127,23 @@
                     console.log("Simulación exitosa.");
                     
                     if(result.success && result.docId) {
-                        uploadDocsBtn.href = `cargar-documentos.html?id=${result.docId}`;
-                        
-                        // --- CAMBIO: Lógica para enviar WhatsApp DE CLIENTE A NEGOCIO ---
                         const clientName = data.fullName;
-                        const businessPhone = "525610074116"; // Tu número de negocio
-                        const message = `¡Hola Home Loans! Acabo de completar mi pre-calificación. Mi nombre es ${clientName}.`;
+                        const businessPhone = "525610074116";
+                        
+                        const documentList = `
+- *INE o PASAPORTE*
+- *CSF (constancia de situación fiscal actual)*
+- *Comprobante de domicilio residencial (actual)*
+- *Acta de Nacimiento*
+- *Acta de Matrimonio*
+- *Últimos 6 estados de cuenta (completos)*
+- *(Último recibo de nómina, en su caso)*
+- *Última declaración anual*
+- *Buró de crédito especial:* https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6
+`;
+                        // Este es el mensaje que el CLIENTE enviará a TU negocio
+                        const message = `Estimado ${clientName} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!\n\nA partir de ahora puedes compartir a este chat o al correo i-zaga@creditaria.com la siguiente información en PDF:${documentList}`;
+                        
                         const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
                         
                         whatsappConfirmBtn.href = whatsappUrl;
@@ -212,7 +218,7 @@
                     icon.classList.add('text-red-600');
                     lucide.createIcons();
                 }
-                uploadDocsBtn.style.display = 'none';
+                whatsappConfirmBtn.style.display = 'none';
                 currentStep++;
                 updateFormSteps();
             }
