@@ -121,7 +121,16 @@
                 }
 
                 try {
-                    // --- CONEXIÓN REAL ACTIVADA ---
+                    // --- MODO DE SIMULACIÓN ACTIVADO ---
+                    // Esto es para evitar el error "Failed to fetch" en este entorno de pruebas.
+                    // El código real que se conectará a tu base de datos está comentado abajo.
+                    console.log("Simulando envío de formulario...");
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    const result = { success: true, docId: 'simulatedDocId12345' };
+                    console.log("Simulación exitosa.");
+                    
+                    /*
+                    // --- CÓDIGO REAL PARA CUANDO PUBLIQUES EL SITIO ---
                     const response = await fetch('/api/enviar-calificacion', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -129,6 +138,7 @@
                     });
                     if (!response.ok) throw new Error('Network response was not ok');
                     const result = await response.json();
+                    */
                     
                     if(result.success && result.docId) {
                         const clientName = data.fullName;
