@@ -22,10 +22,12 @@
         .slider-thumb::-moz-range-thumb { width: 20px; height: 20px; background: #059669; cursor: pointer; border-radius: 50%; }
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        .loading-dots span { animation: blink 1.4s infinite both; }
-        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+        .term-card { transition: all 0.3s ease-in-out; }
+        .term-card.highlight {
+            transform: scale(1.05);
+            background-color: #047857; /* emerald-700 */
+            border-color: #6EE7B7; /* emerald-300 */
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -54,7 +56,6 @@
                 <i data-lucide="menu"></i>
             </button>
         </nav>
-        <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
             <a href="index.html#calculator" class="block py-2 text-gray-600 hover:text-emerald-600">Calculadora</a>
             <a href="quienes-somos.html" class="block py-2 text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
@@ -97,27 +98,71 @@
             </div>
         </section>
 
-        <!-- Mortgage Calculator Section -->
+        <!-- Calculadora Comparativa Section -->
         <section id="calculator" class="bg-white py-20">
             <div class="container mx-auto px-6">
-                <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Calculadora de Pagos Mensuales</h2><p class="mt-4 text-gray-600">Estime su pago mensual y vea el poder de una buena tasa de interés.</p></div>
-                <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-                    <div class="space-y-6">
-                        <div><label for="loanAmount" class="font-semibold">Monto del Préstamo (MXN)</label><div class="flex items-center mt-2"><span class="text-gray-500 mr-2">$</span><input type="tel" id="loanAmount" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" value="2,000,000"></div><input type="range" id="loanAmountSlider" min="100000" max="50000000" step="50000" value="2000000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2"></div>
-                        <div><label for="interestRate" class="font-semibold">Tasa de Interés Anual (%)</label><div class="flex items-center mt-2"><input type="number" id="interestRate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" value="10.5" step="0.1"><span class="text-gray-500 ml-2">%</span></div><input type="range" id="interestRateSlider" min="8" max="15" step="0.1" value="10.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2"></div>
-                        <div><label for="loanTerm" class="font-semibold">Plazo del Préstamo (Años)</label><div class="flex items-center mt-2"><input type="number" id="loanTerm" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" value="20"><span class="text-gray-500 ml-2">Años</span></div><input type="range" id="loanTermSlider" min="5" max="30" step="1" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2"></div>
-                    </div>
-                    <div class="bg-emerald-600 text-white p-8 rounded-xl shadow-lg">
-                        <h3 class="text-2xl font-bold mb-6 text-center">Su Pago Mensual Estimado:</h3>
-                        <div class="text-center mb-8"><span id="monthlyPayment" class="text-5xl font-extrabold">$19,970.46</span></div>
-                        <div class="space-y-4 text-emerald-100">
-                            <div class="flex justify-between"><span>Monto del Préstamo:</span><span id="summaryLoanAmount" class="font-semibold">$2,000,000.00</span></div>
-                            <div class="flex justify-between"><span>Interés Total Pagado:</span><span id="summaryTotalInterest" class="font-semibold">$2,792,909.57</span></div>
-                            <div class="flex justify-between border-t border-emerald-500 pt-4 mt-4"><span class="font-bold">Costo Total del Crédito:</span><span id="summaryTotalPayment" class="font-bold text-lg">$4,792,909.57</span></div>
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">Calculadora Comparativa de Pagos</h2>
+                    <p class="mt-4 text-gray-600">Ajusta el monto y la tasa para ver cómo cambia tu pago a diferentes plazos.</p>
+                </div>
+                <div class="max-w-7xl mx-auto">
+                    <!-- Controles -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                        <div>
+                            <label for="loanAmount" class="font-semibold">Monto del Préstamo (MXN)</label>
+                            <div class="flex items-center mt-2">
+                                <span class="text-gray-500 mr-2">$</span>
+                                <input type="tel" id="loanAmount" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" value="15,850,000">
+                            </div>
+                            <input type="range" id="loanAmountSlider" min="100000" max="50000000" step="50000" value="15850000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2">
                         </div>
-                        <div class="mt-6 text-center">
-                            <button type="button" id="analyze-calculator-btn" class="w-full bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-emerald-800 transition duration-300 shadow-md">✨ Explícame estos resultados</button>
-                            <div id="gemini-calculator-result" class="hidden mt-4 p-4 bg-emerald-700 rounded-lg text-emerald-100 text-left"></div>
+                        <div>
+                            <label for="interestRate" class="font-semibold">Tasa de Interés Anual (%)</label>
+                            <div class="flex items-center mt-2">
+                                <input type="number" id="interestRate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" value="9.0" step="0.1">
+                                <span class="text-gray-500 ml-2">%</span>
+                            </div>
+                             <input type="range" id="interestRateSlider" min="8" max="15" step="0.1" value="9.0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2">
+                        </div>
+                        <div>
+                            <label for="loanTerm" class="font-semibold">Plazo del Préstamo (Años)</label>
+                            <div class="flex items-center mt-2">
+                                <input type="number" id="loanTerm" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" value="20">
+                                <span class="text-gray-500 ml-2">Años</span>
+                            </div>
+                            <input type="range" id="loanTermSlider" min="5" max="30" step="1" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2">
+                        </div>
+                    </div>
+
+                    <!-- Resultados Comparativos -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Escenario a 10 Años -->
+                        <div id="term-card-10" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
+                            <h3 class="text-xl font-bold text-center text-emerald-200 mb-4">A 10 Años</h3>
+                            <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-10" class="text-3xl font-extrabold">$0</p></div>
+                            <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-10" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-10" class="font-bold text-sm">$0</span></div></div>
+                            <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="10"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
+                        </div>
+                        <!-- Escenario a 15 Años -->
+                        <div id="term-card-15" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
+                            <h3 class="text-xl font-bold text-center text-emerald-200 mb-4">A 15 Años</h3>
+                            <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-15" class="text-3xl font-extrabold">$0</p></div>
+                            <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-15" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-15" class="font-bold text-sm">$0</span></div></div>
+                            <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="15"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
+                        </div>
+                        <!-- Escenario a 20 Años -->
+                        <div id="term-card-20" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
+                            <h3 class="text-xl font-bold text-center text-emerald-200 mb-4">A 20 Años</h3>
+                            <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-20" class="text-3xl font-extrabold">$0</p></div>
+                            <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-20" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-20" class="font-bold text-sm">$0</span></div></div>
+                            <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="20"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
+                        </div>
+                        <!-- Escenario Personalizado -->
+                        <div id="term-card-custom" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
+                            <h3 id="custom-term-title" class="text-xl font-bold text-center text-emerald-200 mb-4">A 20 Años</h3>
+                            <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-custom" class="text-3xl font-extrabold">$0</p></div>
+                            <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-custom" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-custom" class="font-bold text-sm">$0</span></div></div>
+                            <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="custom"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
                         </div>
                     </div>
                 </div>
@@ -172,7 +217,6 @@
         </div>
     </footer>
 
-    <!-- CAMBIO: Botón flotante de WhatsApp actualizado -->
     <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." 
        target="_blank" 
        rel="noopener noreferrer"
@@ -187,59 +231,130 @@
         const mobileMenu = document.getElementById('mobile-menu');
         mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
         
+        // --- Lógica de la Calculadora Comparativa ---
         const loanAmountInput = document.getElementById('loanAmount');
         const loanAmountSlider = document.getElementById('loanAmountSlider');
         const interestRateInput = document.getElementById('interestRate');
         const interestRateSlider = document.getElementById('interestRateSlider');
         const loanTermInput = document.getElementById('loanTerm');
         const loanTermSlider = document.getElementById('loanTermSlider');
-        const monthlyPaymentEl = document.getElementById('monthlyPayment');
-        const summaryLoanAmountEl = document.getElementById('summaryLoanAmount');
-        const summaryTotalInterestEl = document.getElementById('summaryTotalInterest');
-        const summaryTotalPaymentEl = document.getElementById('summaryTotalPayment');
-        const analyzeCalculatorBtn = document.getElementById('analyze-calculator-btn');
-        const geminiCalculatorResultDiv = document.getElementById('gemini-calculator-result');
+        const customTermTitle = document.getElementById('custom-term-title');
+
         const formatNumber = (value) => { if (!value) return ''; const numberValue = value.toString().replace(/[^\d]/g, ''); return numberValue.replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
         const unformatNumber = (value) => { return value.toString().replace(/,/g, ''); };
         const formatCurrency = (num) => { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num); };
         
-        function calculateMortgage() {
-            const L = parseFloat(unformatNumber(loanAmountInput.value));
-            const annualRate = parseFloat(interestRateInput.value);
-            const years = parseInt(loanTermInput.value);
-            if (isNaN(L) || isNaN(annualRate) || isNaN(years) || L <= 0 || annualRate <= 0 || years <= 0) { return; }
+        function calculateAndDisplay(L, annualRate, years, idSuffix) {
+            if (isNaN(years) || years <= 0) {
+                document.getElementById(`monthly-payment-${idSuffix}`).textContent = '---';
+                document.getElementById(`total-interest-${idSuffix}`).textContent = '---';
+                document.getElementById(`total-payment-${idSuffix}`).textContent = '---';
+                return;
+            };
+            
             const c = annualRate / 100 / 12;
             const n = years * 12;
             const monthlyPayment = L * (c * Math.pow(1 + c, n)) / (Math.pow(1 + c, n) - 1);
             const totalPayment = monthlyPayment * n;
             const totalInterest = totalPayment - L;
-            monthlyPaymentEl.textContent = formatCurrency(monthlyPayment);
-            summaryLoanAmountEl.textContent = formatCurrency(L);
-            summaryTotalInterestEl.textContent = formatCurrency(totalInterest);
-            summaryTotalPaymentEl.textContent = formatCurrency(totalPayment);
+
+            document.getElementById(`monthly-payment-${idSuffix}`).textContent = formatCurrency(monthlyPayment);
+            document.getElementById(`total-interest-${idSuffix}`).textContent = formatCurrency(totalInterest);
+            document.getElementById(`total-payment-${idSuffix}`).textContent = formatCurrency(totalPayment);
+        }
+
+        function calculateAllTerms() {
+            const L = parseFloat(unformatNumber(loanAmountInput.value));
+            const annualRate = parseFloat(interestRateInput.value);
+            
+            if (isNaN(L) || isNaN(annualRate) || L <= 0 || annualRate <= 0) { return; }
+
+            [10, 15, 20].forEach(years => {
+                calculateAndDisplay(L, annualRate, years, years);
+            });
+
+            const customTerm = parseInt(loanTermInput.value);
+            calculateAndDisplay(L, annualRate, customTerm, 'custom');
+            
+            if (!isNaN(customTerm) && customTerm > 0) {
+                customTermTitle.textContent = `A ${customTerm} Años`;
+            } else {
+                customTermTitle.textContent = 'Plazo Personalizado';
+            }
+            
+            highlightSelectedTerm();
+        }
+
+        function highlightSelectedTerm() {
+            const selectedTerm = parseInt(loanTermInput.value);
+            const termIds = [10, 15, 20];
+            termIds.forEach(term => {
+                document.getElementById(`term-card-${term}`).classList.toggle('highlight', term === selectedTerm);
+            });
+            document.getElementById('term-card-custom').classList.toggle('highlight', !termIds.includes(selectedTerm));
         }
         
-        analyzeCalculatorBtn.addEventListener('click', async () => {
-            geminiCalculatorResultDiv.innerHTML = `<div class="loading-dots text-center"><span class="text-white text-3xl">.</span><span class="text-white text-3xl">.</span><span class="text-white text-3xl">.</span></div>`;
-            geminiCalculatorResultDiv.classList.remove('hidden');
-            const data = { loanAmount: summaryLoanAmountEl.textContent, monthlyPayment: monthlyPaymentEl.textContent, loanTerm: loanTermInput.value, totalInterest: summaryTotalInterestEl.textContent };
-            try {
-                console.log("Simulando análisis de calculadora con Gemini...");
-                await new Promise(resolve => setTimeout(resolve, 1500)); 
-                const sampleAnalysis = `¡Claro! Aquí tienes una explicación simple de tus resultados:<br><br>Tu pago mensual de <strong>${data.monthlyPayment}</strong> es la cantidad clave que deberás integrar en tu presupuesto. Es como el alquiler, pero cada pago construye tu propio patrimonio.<br><br>El interés total de <strong>${data.totalInterest}</strong> puede parecer alto, pero piensa en ello como el costo de usar el dinero del banco durante ${data.loanTerm} años para asegurar tu casa hoy. ¡Es una inversión a largo plazo en tu futuro!<br><br>Este es un gran primer paso hacia la compra de tu hogar.`;
-                geminiCalculatorResultDiv.innerHTML = sampleAnalysis;
-            } catch (error) {
-                geminiCalculatorResultDiv.innerHTML = `<p class="text-red-300">No pudimos generar el análisis. Inténtalo de nuevo.</p>`;
-            }
+        function handleInputChange() {
+            calculateAllTerms();
+        }
+
+        loanAmountSlider.addEventListener('input', () => {
+            loanAmountInput.value = formatNumber(loanAmountSlider.value);
+            handleInputChange();
+        });
+        loanAmountInput.addEventListener('input', () => {
+            const unformatted = unformatNumber(loanAmountInput.value);
+            loanAmountSlider.value = unformatted;
+            loanAmountInput.value = formatNumber(unformatted);
+            handleInputChange();
         });
 
-        loanAmountSlider.addEventListener('input', (e) => { loanAmountInput.value = formatNumber(e.target.value); calculateMortgage(); });
-        loanAmountInput.addEventListener('input', (e) => { const unformattedValue = unformatNumber(e.target.value); loanAmountSlider.value = unformattedValue; e.target.value = formatNumber(unformattedValue); calculateMortgage(); });
-        interestRateSlider.addEventListener('input', (e) => { interestRateInput.value = e.target.value; calculateMortgage(); });
-        interestRateInput.addEventListener('input', (e) => { interestRateSlider.value = e.target.value; calculateMortgage(); });
-        loanTermSlider.addEventListener('input', (e) => { loanTermInput.value = e.target.value; calculateMortgage(); });
-        loanTermInput.addEventListener('input', (e) => { loanTermSlider.value = e.target.value; calculateMortgage(); });
-        window.addEventListener('load', () => { loanAmountInput.value = formatNumber(loanAmountInput.value); calculateMortgage(); });
+        interestRateSlider.addEventListener('input', () => {
+            interestRateInput.value = interestRateSlider.value;
+            handleInputChange();
+        });
+        interestRateInput.addEventListener('input', () => {
+            interestRateSlider.value = interestRateInput.value;
+            handleInputChange();
+        });
+
+        loanTermSlider.addEventListener('input', () => {
+            loanTermInput.value = loanTermSlider.value;
+            handleInputChange();
+        });
+        loanTermInput.addEventListener('input', () => {
+            loanTermSlider.value = loanTermInput.value;
+            handleInputChange();
+        });
+        
+        // --- Lógica para Compartir en WhatsApp ---
+        document.querySelectorAll('.share-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const termType = e.currentTarget.dataset.term;
+                let termYears;
+                if (termType === 'custom') {
+                    termYears = loanTermInput.value;
+                } else {
+                    termYears = termType;
+                }
+
+                const loanAmount = loanAmountInput.value;
+                const interestRate = interestRateInput.value;
+                const monthlyPayment = document.getElementById(`monthly-payment-${termType}`).textContent;
+                const totalPayment = document.getElementById(`total-payment-${termType}`).textContent;
+                
+                // CAMBIO: Texto del mensaje actualizado
+                const message = `¡Hola! Te comparto este escenario de crédito hipotecario de Home Loans:\n\n*Monto:* $${loanAmount} MXN\n*Plazo:* ${termYears} años\n*Tasa:* ${interestRate}%\n\n*Pago Mensual Aprox:* ${monthlyPayment}\n*Monto Total Pagado:* ${totalPayment}\n\n¡Calcula tu propio escenario y obtén la mejor tasa en https://www.homeloans.mx/index.html!`;
+
+                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            });
+        });
+
+        window.addEventListener('load', () => {
+            loanAmountInput.value = formatNumber(loanAmountInput.value);
+            calculateAllTerms();
+        });
     </script>
 </body>
 </html>
