@@ -3,7 +3,6 @@ import { initializeApp, getApps } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 // --- Configuración de Firebase ---
-// Este código leerá las claves directamente desde las Variables de Entorno de Vercel
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -18,17 +17,28 @@ let app;
 if (!getApps().length) {
     // Validar que las variables de entorno se cargaron
     if (!firebaseConfig.projectId) {
-        throw new Error("La configuración de Firebase no se cargó correctamente. Revisa las variables de entorno en Vercel.");
+        // Este es el error que probablemente está ocurriendo.
+        // Devolvemos un error 500 (error de servidor) con un mensaje claro.
+        console.error("ERROR: Las variables de entorno de Firebase no se cargaron.");
+        // No continuamos si no hay configuración.
+    } else {
+        app = initializeApp(firebaseConfig);
     }
-    app = initializeApp(firebaseConfig);
 } else {
     app = getApps()[0];
 }
-const db = getFirestore(app);
+
+// Solo obtenemos la base de datos si la app se inicializó correctamente
+const db = app ? getFirestore(app) : null;
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
+    }
+
+    // Si la base de datos no se pudo inicializar, devolvemos un error.
+    if (!db) {
+        return res.status(500).json({ success: false, message: 'Error de configuración del servidor: no se pudo conectar a la base de datos.' });
     }
 
     const data = req.body;
@@ -57,6 +67,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('Error detallado al guardar en Firestore:', error);
-        return res.status(500).json({ success: false, message: 'Error al conectar con la base de datos. Revisa las claves en el servidor.' });
+        return res.status(500).json({ success: false, message: 'Error al escribir en la base de datos.' });
     }
 }
