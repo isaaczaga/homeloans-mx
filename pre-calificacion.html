@@ -121,27 +121,20 @@
                 }
 
                 try {
-                    console.log("Simulando envío de formulario...");
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    const result = { success: true, docId: 'simulatedDocId12345' };
-                    console.log("Simulación exitosa.");
+                    // --- CONEXIÓN REAL ACTIVADA ---
+                    const response = await fetch('/api/enviar-calificacion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                    });
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const result = await response.json();
                     
                     if(result.success && result.docId) {
                         const clientName = data.fullName;
                         const businessPhone = "525610074116";
                         
-                        const documentList = `
-- *INE o PASAPORTE*
-- *CSF (constancia de situación fiscal actual)*
-- *Comprobante de domicilio residencial (actual)*
-- *Acta de Nacimiento*
-- *Acta de Matrimonio*
-- *Últimos 6 estados de cuenta (completos)*
-- *(Último recibo de nómina, en su caso)*
-- *Última declaración anual*
-- *Buró de crédito especial:* https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6
-`;
-                        // Este es el mensaje que el CLIENTE enviará a TU negocio
+                        const documentList = `\n- *INE o PASAPORTE*\n- *CSF (constancia de situación fiscal actual)*\n- *Comprobante de domicilio residencial (actual)*\n- *Acta de Nacimiento*\n- *Acta de Matrimonio*\n- *Últimos 6 estados de cuenta (completos)*\n- *(Último recibo de nómina, en su caso)*\n- *Última declaración anual*\n- *Buró de crédito especial:* https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
                         const message = `Estimado ${clientName} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!\n\nA partir de ahora puedes compartir a este chat o al correo i-zaga@creditaria.com la siguiente información en PDF:${documentList}`;
                         
                         const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
