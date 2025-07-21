@@ -130,7 +130,6 @@
                     const result = await response.json();
 
                     if (!response.ok) {
-                        // Si la respuesta no es exitosa, lanza un error con el mensaje del backend
                         throw new Error(result.message || 'Error en la respuesta del servidor');
                     }
                     
