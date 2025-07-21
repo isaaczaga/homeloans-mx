@@ -1,0 +1,15 @@
+# Ignorar la carpeta de dependencias de Node.js
+node_modules
+
+# Ignorar archivos de configuración de sistemas operativos
+.DS_Store
+Thumbs.db
+# Ignorar la carpeta de dependencias de Node.js
+node_modules
+
+# Ignorar archivos de configuración de sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Ignorar variables de entorno locales
+.env.local

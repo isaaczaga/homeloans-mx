@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -152,7 +152,7 @@
                     }
                 } catch (error) {
                     console.error('Submission failed:', error);
-                    showErrorConfirmation(error.message); // Muestra el mensaje de error específico
+                    showErrorConfirmation(error.message);
                 } finally {
                     submitBtn.disabled = false;
                     submitBtnText.classList.remove('hidden');
@@ -204,7 +204,7 @@
 
             function showErrorConfirmation(errorMessage = "No pudimos procesar tu solicitud. Por favor, inténtalo de nuevo o contáctanos.") {
                 confirmationTitle.textContent = "Ocurrió un Error";
-                confirmationMessage.textContent = errorMessage; // Muestra el error específico
+                confirmationMessage.textContent = errorMessage;
                 const iconContainer = document.getElementById('step-4').querySelector('div:first-child');
                 const icon = iconContainer ? iconContainer.querySelector('i') : null;
                 if (iconContainer && icon) {
