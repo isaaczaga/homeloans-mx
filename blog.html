@@ -4,26 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recursos y Blog - HomeLoans.mx</title>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .modal-overlay {
-            transition: opacity 0.3s ease-in-out;
-        }
-        .modal-content {
-            transition: transform 0.3s ease-in-out;
-        }
+        .modal-overlay { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out; }
         .article-content-modal h2 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; }
         .article-content-modal p { line-height: 1.75; margin-bottom: 1rem; color: #374151; }
         .article-content-modal ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
@@ -32,7 +21,6 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <!-- Header -->
     <header class="bg-white shadow-sm sticky top-0 z-50">
         <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
             <a href="index.html" class="flex items-center space-x-2">
@@ -57,73 +45,11 @@
         </div>
     </header>
 
-    <!-- Main Content -->
     <main>
-        <!-- Page Header Section -->
-        <section class="bg-white">
-            <div class="container mx-auto px-6 py-24 text-center">
-                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900">Recursos para tu Futuro Financiero</h1>
-                <p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-                    Guías, análisis y consejos de expertos para ayudarte a tomar las mejores decisiones sobre tu crédito hipotecario en México.
-                </p>
-            </div>
-        </section>
-
-        <!-- Blog Posts Section -->
-        <section class="py-20">
-            <div class="container mx-auto px-6">
-                
-                <!-- Featured Post -->
-                <!-- CAMBIO: Se añadió data-article-id -->
-                <article class="mb-16 grid md:grid-cols-2 gap-10 items-center" data-article-id="guia-extranjeros">
-                    <a href="#" class="read-article-btn">
-                        <img src="https://placehold.co/600x400/A7F3D0/047857?text=Gu%C3%ADa+2025" alt="" class="rounded-xl shadow-lg w-full hover:opacity-90 transition-opacity">
-                    </a>
-                    <div>
-                        <p class="text-emerald-600 font-semibold text-sm mb-2">GUÍA DESTACADA</p>
-                        <h2 class="text-3xl font-bold text-gray-900 mb-4 hover:text-emerald-700"><a href="#" class="read-article-btn">Guía Completa 2025: Cómo Obtener un Crédito Hipotecario en México siendo Extranjero</a></h2>
-                        <p class="text-gray-600 mb-4">
-                            ¿Resides fuera de México y sueñas con comprar una propiedad aquí? Esta guía detallada desglosa cada paso del proceso, desde los requisitos de visado y documentación hasta cómo encontrar un notario de confianza.
-                        </p>
-                        <a href="#" class="font-semibold text-emerald-600 hover:text-emerald-800 flex items-center read-article-btn">
-                            Leer más <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Grid of other posts -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                    <!-- CAMBIO: Se añadió data-article-id a cada artículo -->
-                    <article class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col" data-article-id="5-errores">
-                        <a href="#" class="read-article-btn"><img src="https://placehold.co/400x250/E0F2F1/047857?text=Errores" alt="" class="w-full h-48 object-cover hover:opacity-90 transition-opacity"></a>
-                        <div class="p-6 flex flex-col flex-grow">
-                            <h3 class="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-700 flex-grow"><a href="#" class="read-article-btn">Los 5 Errores Más Comunes al Solicitar un Crédito Hipotecario</a></h3>
-                            <p class="text-gray-600 text-sm mb-4">Desde no revisar su buró de crédito hasta aceptar la primera oferta, conozca las trampas comunes que pueden costarle miles.</p>
-                            <a href="#" class="font-semibold text-sm text-emerald-600 hover:text-emerald-800 mt-auto read-article-btn">Leer artículo</a>
-                        </div>
-                    </article>
-                    <article class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col" data-article-id="tasas">
-                        <a href="#" class="read-article-btn"><img src="https://placehold.co/400x250/E0F2F1/047857?text=Tasas" alt="" class="w-full h-48 object-cover hover:opacity-90 transition-opacity"></a>
-                        <div class="p-6 flex flex-col flex-grow">
-                            <h3 class="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-700 flex-grow"><a href="#" class="read-article-btn">Tasa Fija vs. Tasa Variable: ¿Cuál es la Mejor Opción para Usted?</a></h3>
-                            <p class="text-gray-600 text-sm mb-4">Analizamos los pros y contras de cada tipo de tasa de interés en el contexto económico actual de México.</p>
-                            <a href="#" class="font-semibold text-sm text-emerald-600 hover:text-emerald-800 mt-auto read-article-btn">Leer artículo</a>
-                        </div>
-                    </article>
-                    <article class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col" data-article-id="cofinavit">
-                        <a href="#" class="read-article-btn"><img src="https://placehold.co/400x250/E0F2F1/047857?text=INFONAVIT" alt="[Imagen del logo de Infonavit]" class="w-full h-48 object-cover hover:opacity-90 transition-opacity"></a>
-                        <div class="p-6 flex flex-col flex-grow">
-                            <h3 class="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-700 flex-grow"><a href="#" class="read-article-btn">¿Puedo Combinar mi Crédito INFONAVIT con un Crédito Bancario?</a></h3>
-                            <p class="text-gray-600 text-sm mb-4">Descubra los esquemas de cofinanciamiento que le permiten aumentar su capacidad de compra utilizando sus prestaciones.</p>
-                            <a href="#" class="font-semibold text-sm text-emerald-600 hover:text-emerald-800 mt-auto read-article-btn">Leer artículo</a>
-                        </div>
-                    </article>
-                </div>
-            </div>
-        </section>
+        <section class="bg-white"><div class="container mx-auto px-6 py-24 text-center"><h1 class="text-4xl md:text-5xl font-extrabold text-gray-900">Recursos para tu Futuro Financiero</h1><p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">Guías, análisis y consejos de expertos para ayudarte a tomar las mejores decisiones sobre tu crédito hipotecario en México.</p></div></section>
+        <section class="py-20"><div class="container mx-auto px-6"><article class="mb-16 grid md:grid-cols-2 gap-10 items-center" data-article-id="guia-extranjeros"><a href="#" class="read-article-btn"><img src="https://placehold.co/600x400/A7F3D0/047857?text=Gu%C3%ADa+2025" alt="" class="rounded-xl shadow-lg w-full hover:opacity-90 transition-opacity"></a><div><p class="text-emerald-600 font-semibold text-sm mb-2">GUÍA DESTACADA</p><h2 class="text-3xl font-bold text-gray-900 mb-4 hover:text-emerald-700"><a href="#" class="read-article-btn">Guía Completa 2025: Cómo Obtener un Crédito Hipotecario en México siendo Extranjero</a></h2><p class="text-gray-600 mb-4">¿Resides fuera de México y sueñas con comprar una propiedad aquí? Esta guía detallada desglosa cada paso del proceso, desde los requisitos de visado y documentación hasta cómo encontrar un notario de confianza.</p><a href="#" class="font-semibold text-emerald-600 hover:text-emerald-800 flex items-center read-article-btn">Leer más <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i></a></div></article><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"><article class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col" data-article-id="5-errores"><a href="#" class="read-article-btn"><img src="https://placehold.co/400x250/E0F2F1/047857?text=Errores" alt="" class="w-full h-48 object-cover hover:opacity-90 transition-opacity"></a><div class="p-6 flex flex-col flex-grow"><h3 class="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-700 flex-grow"><a href="#" class="read-article-btn">Los 5 Errores Más Comunes al Solicitar un Crédito Hipotecario</a></h3><p class="text-gray-600 text-sm mb-4">Desde no revisar su buró de crédito hasta aceptar la primera oferta, conozca las trampas comunes que pueden costarle miles.</p><a href="#" class="font-semibold text-sm text-emerald-600 hover:text-emerald-800 mt-auto read-article-btn">Leer artículo</a></div></article><article class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col" data-article-id="tasas"><a href="#" class="read-article-btn"><img src="https://placehold.co/400x250/E0F2F1/047857?text=Tasas" alt="" class="w-full h-48 object-cover hover:opacity-90 transition-opacity"></a><div class="p-6 flex flex-col flex-grow"><h3 class="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-700 flex-grow"><a href="#" class="read-article-btn">Tasa Fija vs. Tasa Variable: ¿Cuál es la Mejor Opción para Usted?</a></h3><p class="text-gray-600 text-sm mb-4">Analizamos los pros y contras de cada tipo de tasa de interés en el contexto económico actual de México.</p><a href="#" class="font-semibold text-sm text-emerald-600 hover:text-emerald-800 mt-auto read-article-btn">Leer artículo</a></div></article><article class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col" data-article-id="cofinavit"><a href="#" class="read-article-btn"><img src="https://placehold.co/400x250/E0F2F1/047857?text=INFONAVIT" alt="[Imagen del logo de Infonavit]" class="w-full h-48 object-cover hover:opacity-90 transition-opacity"></a><div class="p-6 flex flex-col flex-grow"><h3 class="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-700 flex-grow"><a href="#" class="read-article-btn">¿Puedo Combinar mi Crédito INFONAVIT con un Crédito Bancario?</a></h3><p class="text-gray-600 text-sm mb-4">Descubra los esquemas de cofinanciamiento que le permiten aumentar su capacidad de compra utilizando sus prestaciones.</p><a href="#" class="font-semibold text-sm text-emerald-600 hover:text-emerald-800 mt-auto read-article-btn">Leer artículo</a></div></article></div></div></section>
     </main>
 
-    <!-- Footer -->
     <footer class="bg-gray-800 text-white">
         <div class="container mx-auto px-6 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -136,19 +62,14 @@
         </div>
     </footer>
 
-    <!-- Modal para leer artículos -->
     <div id="article-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden modal-overlay opacity-0">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col modal-content transform scale-95">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h3 id="modal-title" class="text-xl font-bold"></h3>
-                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button>
-            </div>
-            <div class="p-6 md:p-8 overflow-y-auto">
-                <img id="modal-image" src="" alt="" class="w-full h-64 object-cover rounded-lg mb-6">
-                <div id="modal-body" class="article-content-modal"></div>
-            </div>
+            <div class="p-4 border-b flex justify-between items-center"><h3 id="modal-title" class="text-xl font-bold"></h3><button id="close-modal-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button></div>
+            <div class="p-6 md:p-8 overflow-y-auto"><img id="modal-image" src="" alt="" class="w-full h-64 object-cover rounded-lg mb-6"><div id="modal-body" class="article-content-modal"></div></div>
         </div>
     </div>
+    
+    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
 
     <script>
         lucide.createIcons();
@@ -156,7 +77,6 @@
         const mobileMenu = document.getElementById('mobile-menu');
         mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
 
-        // --- Lógica del Modal de Artículos ---
         const modal = document.getElementById('article-modal');
         const modalOverlay = modal;
         const modalContent = modal.querySelector('.modal-content');
@@ -165,60 +85,30 @@
         const modalImage = document.getElementById('modal-image');
         const modalBody = document.getElementById('modal-body');
 
-        // CAMBIO: Base de datos de artículos
         const articlesData = {
-            'guia-extranjeros': {
-                title: "Guía Completa 2025: Cómo Obtener un Crédito Hipotecario en México siendo Extranjero",
-                image: "https://placehold.co/1200x600/A7F3D0/047857?text=Gu%C3%ADa+para+Extranjeros",
-                body: `<p>Comprar una propiedad en México es un sueño para muchos extranjeros. Esta guía está diseñada para iluminar el camino.</p><h2>Paso 1: Requisitos Clave</h2><ul><li><strong>Estatus Migratorio:</strong> Necesitarás una visa de Residente Temporal o Permanente.</li><li><strong>Comprobante de Ingresos:</strong> Deberás demostrar ingresos estables.</li><li><strong>Historial Crediticio:</strong> Un buen crédito en tu país de origen es vital.</li><li><strong>Enganche:</strong> Generalmente entre el 20% y el 30%.</li></ul><h2>Paso 2: La Asesoría Correcta</h2><p>Un experto como HomeLoans.mx es indispensable para guiarte en el proceso y encontrar las mejores condiciones para ti.</p>`
-            },
-            '5-errores': {
-                title: "Los 5 Errores Más Comunes al Solicitar un Crédito Hipotecario",
-                image: "https://placehold.co/1200x600/E0F2F1/047857?text=Errores+Comunes",
-                body: `<p>Solicitar un crédito hipotecario es un gran paso. Evita estos errores comunes para asegurar un proceso exitoso.</p><h2>Error 1: No revisar tu Buró de Crédito</h2><p>Tu historial es tu carta de presentación. Conócelo y corrígelo antes de que los bancos lo vean.</p><h2>Error 2: Aceptar la primera oferta</h2><p>Comparar es clave. Un bróker como nosotros puede mostrarte múltiples opciones para que elijas la mejor, no la primera que encuentres.</p>`
-            },
-            'tasas': {
-                title: "Tasa Fija vs. Tasa Variable: ¿Cuál es la Mejor Opción?",
-                image: "https://placehold.co/1200x600/D1FAE5/047857?text=Tasas+de+Inter%C3%A9s",
-                body: `<p>Entender la diferencia entre tasa fija y variable es fundamental para tu salud financiera a largo plazo.</p><h2>Tasa Fija</h2><p>Ofrece certidumbre. Tu pago mensual será el mismo durante toda la vida del crédito, sin importar las fluctuaciones del mercado. Ideal para quienes buscan estabilidad.</p><h2>Tasa Variable</h2><p>Suele empezar más baja que la fija, pero se ajusta periódicamente según las condiciones del mercado. Puede ser una buena opción si esperas que las tasas bajen o si planeas pagar tu crédito en un corto plazo.</p>`
-            },
-            'cofinavit': {
-                title: "¿Puedo Combinar mi Crédito INFONAVIT con un Crédito Bancario?",
-                image: "https://placehold.co/1200x600/E0F2F1/047857?text=COFINAVIT",
-                body: `<p>¡Sí! El esquema COFINAVIT te permite hacer exactamente eso, y es una excelente manera de aumentar tu capacidad de compra.</p><h2>¿Cómo funciona?</h2><p>Combina tres fuentes de financiamiento:</p><ul><li>El crédito que te otorga el INFONAVIT.</li><li>El saldo que tienes en tu Subcuenta de Vivienda.</li><li>Un crédito hipotecario de una institución financiera.</li></ul><p>Esto te permite comprar una casa de mayor valor de la que podrías adquirir solo con tu crédito INFONAVIT.</p>`
-            }
+            'guia-extranjeros': { title: "Guía Completa 2025: Cómo Obtener un Crédito Hipotecario en México siendo Extranjero", image: "https://placehold.co/1200x600/A7F3D0/047857?text=Gu%C3%ADa+para+Extranjeros", body: `<p>Comprar una propiedad en México es un sueño para muchos extranjeros. Esta guía está diseñada para iluminar el camino.</p><h2>Paso 1: Requisitos Clave</h2><ul><li><strong>Estatus Migratorio:</strong> Necesitarás una visa de Residente Temporal o Permanente.</li><li><strong>Comprobante de Ingresos:</strong> Deberás demostrar ingresos estables.</li><li><strong>Historial Crediticio:</strong> Un buen crédito en tu país de origen es vital.</li><li><strong>Enganche:</strong> Generalmente entre el 20% y el 30%.</li></ul><h2>Paso 2: La Asesoría Correcta</h2><p>Un experto como HomeLoans.mx es indispensable para guiarte en el proceso y encontrar las mejores condiciones para ti.</p>` },
+            '5-errores': { title: "Los 5 Errores Más Comunes al Solicitar un Crédito Hipotecario", image: "https://placehold.co/1200x600/E0F2F1/047857?text=Errores+Comunes", body: `<p>Solicitar un crédito hipotecario es un gran paso. Evita estos errores comunes para asegurar un proceso exitoso.</p><h2>Error 1: No revisar tu Buró de Crédito</h2><p>Tu historial es tu carta de presentación. Conócelo y corrígelo antes de que los bancos lo vean.</p><h2>Error 2: Aceptar la primera oferta</h2><p>Comparar es clave. Un bróker como nosotros puede mostrarte múltiples opciones para que elijas la mejor, no la primera que encuentres.</p>` },
+            'tasas': { title: "Tasa Fija vs. Tasa Variable: ¿Cuál es la Mejor Opción?", image: "https://placehold.co/1200x600/D1FAE5/047857?text=Tasas+de+Inter%C3%A9s", body: `<p>Entender la diferencia entre tasa fija y variable es fundamental para tu salud financiera a largo plazo.</p><h2>Tasa Fija</h2><p>Ofrece certidumbre. Tu pago mensual será el mismo durante toda la vida del crédito, sin importar las fluctuaciones del mercado. Ideal para quienes buscan estabilidad.</p><h2>Tasa Variable</h2><p>Suele empezar más baja que la fija, pero se ajusta periódicamente según las condiciones del mercado. Puede ser una buena opción si esperas que las tasas bajen o si planeas pagar tu crédito en un corto plazo.</p>` },
+            'cofinavit': { title: "¿Puedo Combinar mi Crédito INFONAVIT con un Crédito Bancario?", image: "https://placehold.co/1200x600/E0F2F1/047857?text=COFINAVIT", body: `<p>¡Sí! El esquema COFINAVIT te permite hacer exactamente eso, y es una excelente manera de aumentar tu capacidad de compra.</p><h2>¿Cómo funciona?</h2><p>Combina tres fuentes de financiamiento:</p><ul><li>El crédito que te otorga el INFONAVIT.</li><li>El saldo que tienes en tu Subcuenta de Vivienda.</li><li>Un crédito hipotecario de una institución financiera.</li></ul><p>Esto te permite comprar una casa de mayor valor de la que podrías adquirir solo con tu crédito INFONAVIT.</p>` }
         };
 
-        // CAMBIO: La función ahora acepta un ID de artículo
         function openModal(articleId) {
             const article = articlesData[articleId];
-            if (!article) {
-                console.error("Artículo no encontrado:", articleId);
-                return;
-            }
-
+            if (!article) return;
             modalTitle.textContent = article.title;
             modalImage.src = article.image;
             modalBody.innerHTML = article.body;
-            
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                modalOverlay.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-95');
-            }, 10);
+            setTimeout(() => { modalOverlay.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); }, 10);
         }
 
         function closeModal() {
             modalOverlay.classList.add('opacity-0');
             modalContent.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                document.body.style.overflow = 'auto';
-            }, 300);
+            setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = 'auto'; }, 300);
         }
 
-        // CAMBIO: El event listener ahora busca el ID del artículo padre
         document.body.addEventListener('click', (e) => {
             const readBtn = e.target.closest('.read-article-btn');
             if (readBtn) {
@@ -230,16 +120,8 @@
         });
 
         closeModalBtn.addEventListener('click', closeModal);
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) {
-                closeModal();
-            }
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-                closeModal();
-            }
-        });
+        modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
     </script>
 </body>
 </html>
