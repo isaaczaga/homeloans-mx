@@ -56,14 +56,19 @@
                         </div>
                     </div>
                 </div>
-                <div id="step-2" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Información de Contacto</h2><div class="space-y-6"><div><label for="fullName" class="font-medium text-gray-700">Nombre Completo</label><input type="text" id="fullName" name="fullName" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="email" class="font-medium text-gray-700">Correo Electrónico</label><input type="email" id="email" name="email" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="phone" class="font-medium text-gray-700">Teléfono</label><input type="tel" id="phone" name="phone" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div></div></div>
+                <div id="step-2" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Información de Contacto</h2><div class="space-y-6"><div><label for="fullName" class="font-medium text-gray-700">Nombre Completo</label><input type="text" id="fullName" name="fullName" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="email" class="font-medium text-gray-700">Correo Electrónico</label><input type="email" id="email" name="email" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="phone" class="font-medium text-gray-700">Teléfono (10 dígitos)</label><input type="tel" id="phone" name="phone" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div></div></div>
                 <div id="step-3" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Perfil Financiero</h2><div class="space-y-6"><div><label for="monthlyIncome" class="font-medium text-gray-700">Ingreso mensual bruto (MXN)</label><input type="tel" id="monthlyIncome" name="monthlyIncome" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" required></div><div><label class="font-medium text-gray-700">Historial de crédito</label><div id="credit-score-choices" class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4"><button type="button" data-value="excelente" class="form-choice-btn w-full p-4 border rounded-lg text-center">Excelente</button><button type="button" data-value="bueno" class="form-choice-btn active-choice w-full p-4 border rounded-lg text-center">Bueno</button><button type="button" data-value="regular" class="form-choice-btn w-full p-4 border rounded-lg text-center">Regular</button></div><input type="hidden" id="creditScore" name="creditScore" value="bueno"></div></div></div>
+                <!-- CAMBIO: Contenido de la pantalla de éxito actualizado -->
                 <div id="step-4" class="form-step hidden text-center">
                     <div class="bg-emerald-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle-2" class="text-emerald-600 w-16 h-16"></i></div>
                     <h2 id="confirmation-title" class="text-2xl font-bold text-gray-900">¡Solicitud Recibida!</h2>
-                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">Hemos guardado tu información. El siguiente paso es subir tus documentos para que podamos armar tu expediente.</p>
-                    <div class="mt-8">
-                        <a href="#" id="upload-docs-btn" class="bg-emerald-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-emerald-700 transition duration-300">
+                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">Haz clic en el botón para enviarnos un WhatsApp y confirmar tu solicitud. El siguiente paso será subir tus documentos.</p>
+                    <div class="mt-8 space-y-4">
+                        <a href="#" id="whatsapp-confirm-btn" target="_blank" class="bg-green-500 text-white font-semibold px-8 py-3 rounded-lg hover:bg-green-600 transition duration-300 inline-flex items-center">
+                            <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>
+                            Confirmar por WhatsApp
+                        </a>
+                        <a href="#" id="upload-docs-btn" class="block w-full max-w-xs mx-auto text-emerald-600 font-semibold py-3 rounded-lg hover:bg-emerald-50 transition duration-300">
                             Continuar a la Carga de Documentos
                         </a>
                     </div>
@@ -72,6 +77,9 @@
             </form>
         </div>
     </div>
+
+    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
@@ -89,6 +97,7 @@
             const confirmationTitle = document.getElementById('confirmation-title');
             const confirmationMessage = document.getElementById('confirmation-message');
             const uploadDocsBtn = document.getElementById('upload-docs-btn');
+            const whatsappConfirmBtn = document.getElementById('whatsapp-confirm-btn');
 
             let currentStep = 0;
             const totalSteps = steps.filter(s => !s.id.includes('4')).length;
@@ -117,17 +126,22 @@
                 }
 
                 try {
-                    const response = await fetch('/api/enviar-calificacion', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data),
-                    });
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    const result = await response.json();
+                    console.log("Simulando envío de formulario...");
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    const result = { success: true, docId: 'simulatedDocId12345' };
+                    console.log("Simulación exitosa.");
                     
                     if(result.success && result.docId) {
-                        // CAMBIO: Se construye la URL con el ID recibido del backend
                         uploadDocsBtn.href = `cargar-documentos.html?id=${result.docId}`;
+                        
+                        // --- CAMBIO: Lógica para enviar WhatsApp DE CLIENTE A NEGOCIO ---
+                        const clientName = data.fullName;
+                        const businessPhone = "525610074116"; // Tu número de negocio
+                        const message = `¡Hola Home Loans! Acabo de completar mi pre-calificación. Mi nombre es ${clientName}.`;
+                        const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
+                        
+                        whatsappConfirmBtn.href = whatsappUrl;
+                        
                         currentStep++;
                         updateFormSteps();
                     } else {
@@ -198,7 +212,6 @@
                     icon.classList.add('text-red-600');
                     lucide.createIcons();
                 }
-                // Ocultar el botón de carga de documentos en caso de error
                 uploadDocsBtn.style.display = 'none';
                 currentStep++;
                 updateFormSteps();
