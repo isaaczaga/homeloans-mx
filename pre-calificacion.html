@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -121,14 +121,18 @@
                 }
 
                 try {
-                    // --- CONEXIÓN REAL ACTIVADA ---
                     const response = await fetch('/api/enviar-calificacion', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data),
                     });
-                    if (!response.ok) throw new Error('Network response was not ok');
+                    
                     const result = await response.json();
+
+                    if (!response.ok) {
+                        // Si la respuesta no es exitosa, lanza un error con el mensaje del backend
+                        throw new Error(result.message || 'Error en la respuesta del servidor');
+                    }
                     
                     if(result.success && result.docId) {
                         const clientName = data.fullName;
@@ -144,11 +148,11 @@
                         currentStep++;
                         updateFormSteps();
                     } else {
-                        throw new Error(result.message || 'API returned an error');
+                        throw new Error(result.message || 'API devolvió un error desconocido');
                     }
                 } catch (error) {
                     console.error('Submission failed:', error);
-                    showErrorConfirmation();
+                    showErrorConfirmation(error.message); // Muestra el mensaje de error específico
                 } finally {
                     submitBtn.disabled = false;
                     submitBtnText.classList.remove('hidden');
@@ -198,9 +202,9 @@
                 return isValid;
             }
 
-            function showErrorConfirmation() {
+            function showErrorConfirmation(errorMessage = "No pudimos procesar tu solicitud. Por favor, inténtalo de nuevo o contáctanos.") {
                 confirmationTitle.textContent = "Ocurrió un Error";
-                confirmationMessage.textContent = "No pudimos procesar tu solicitud. Por favor, inténtalo de nuevo o contáctanos.";
+                confirmationMessage.textContent = errorMessage; // Muestra el error específico
                 const iconContainer = document.getElementById('step-4').querySelector('div:first-child');
                 const icon = iconContainer ? iconContainer.querySelector('i') : null;
                 if (iconContainer && icon) {
