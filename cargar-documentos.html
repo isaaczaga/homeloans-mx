@@ -61,6 +61,8 @@
                     <button id="finish-btn" class="bg-emerald-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-emerald-700 transition duration-300 opacity-50 cursor-not-allowed" disabled>
                         Finalizar y Enviar Expediente
                     </button>
+                    <!-- CAMBIO: Mensaje de ayuda añadido -->
+                    <p id="helper-text" class="text-sm text-gray-500 mt-2"></p>
                 </div>
             </div>
         </div>
@@ -105,6 +107,7 @@
 
         const uploadList = document.getElementById('upload-list');
         const finishBtn = document.getElementById('finish-btn');
+        const helperText = document.getElementById('helper-text');
         const uploadedFiles = {};
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -145,6 +148,9 @@
             const input = docElement.querySelector(`#input-${doc.id}`);
             input.addEventListener('change', (e) => handleFileUpload(e, doc));
         });
+        
+        // CAMBIO: Llamar a la función de verificación al cargar la página
+        checkRequiredFilesUploaded();
 
         async function handleFileUpload(e, doc) {
             const file = e.target.files[0];
@@ -190,11 +196,22 @@
 
         function checkRequiredFilesUploaded() {
             const requiredDocs = documents.filter(d => d.required);
-            const allRequiredUploaded = requiredDocs.every(d => uploadedFiles.hasOwnProperty(d.id));
+            const uploadedRequiredCount = requiredDocs.filter(d => uploadedFiles.hasOwnProperty(d.id)).length;
+            const allRequiredUploaded = uploadedRequiredCount === requiredDocs.length;
             
             if (allRequiredUploaded) {
                 finishBtn.disabled = false;
                 finishBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                finishBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                helperText.textContent = '¡Excelente! Has subido todos los documentos obligatorios.';
+                helperText.classList.add('text-green-600');
+            } else {
+                finishBtn.disabled = true;
+                finishBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                finishBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                const remaining = requiredDocs.length - uploadedRequiredCount;
+                helperText.textContent = `Faltan ${remaining} de ${requiredDocs.length} documentos obligatorios.`;
+                helperText.classList.remove('text-green-600');
             }
         }
 
@@ -218,6 +235,7 @@
                     </div>
                 `;
                 finishBtn.style.display = 'none';
+                helperText.style.display = 'none';
                 lucide.createIcons();
 
             } catch (error) {
