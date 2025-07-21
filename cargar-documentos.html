@@ -31,7 +31,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-    <!-- Header -->
     <header class="bg-white shadow-sm">
         <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
             <a href="index.html" class="flex items-center space-x-2">
@@ -41,7 +40,6 @@
         </nav>
     </header>
 
-    <!-- Main Content -->
     <main class="py-12">
         <div class="container mx-auto px-6 max-w-3xl">
             <div class="bg-white rounded-2xl shadow-xl p-8">
@@ -67,13 +65,12 @@
     </main>
     
     <script type="module">
-        // Importa las funciones de Firebase que necesitas
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
         import { getFirestore, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // --- Configuración de Firebase ---
-        // En un despliegue real, estas claves vendrían de un lugar seguro.
+        // NOTA: Estas claves son las mismas que usaste en tu backend.
+        // En un entorno de producción, se recomienda gestionar estas claves de forma segura.
         const firebaseConfig = {
             apiKey: "AIzaSyCK20Yfg05KcR0pP3wK27mpqJvMhw1E",
             authDomain: "homeloan-app.firebaseapp.com",
@@ -95,22 +92,21 @@
         lucide.createIcons();
 
         const documents = [
-            { id: 'identificacion', name: 'INE o Pasaporte' },
-            { id: 'actaNacimiento', name: 'Acta de Nacimiento' },
-            { id: 'actaMatrimonio', name: 'Acta de Matrimonio (si aplica)' },
-            { id: 'compDomicilio', name: 'Comprobante de Domicilio' },
-            { id: 'csf', name: 'Constancia de Situación Fiscal (CSF)' },
-            { id: 'edosCuenta', name: 'Últimos 6 estados de cuenta' },
-            { id: 'recibosNomina', name: 'Últimos 6 recibos de nómina' },
-            { id: 'declaracionImpuestos', name: 'Última declaración de impuestos (si aplica)' },
-            { id: 'buro', name: 'Reporte de Buró de Crédito Especial' }
+            { id: 'identificacion', name: 'INE o Pasaporte', required: true },
+            { id: 'actaNacimiento', name: 'Acta de Nacimiento', required: false },
+            { id: 'actaMatrimonio', name: 'Acta de Matrimonio (si aplica)', required: false },
+            { id: 'compDomicilio', name: 'Comprobante de Domicilio', required: true },
+            { id: 'csf', name: 'Constancia de Situación Fiscal (CSF)', required: true },
+            { id: 'edosCuenta', name: 'Últimos 6 estados de cuenta', required: true },
+            { id: 'recibosNomina', name: 'Últimos 6 recibos de nómina', required: true },
+            { id: 'declaracionImpuestos', name: 'Última declaración de impuestos (si aplica)', required: false },
+            { id: 'buro', name: 'Reporte de Buró de Crédito Especial', required: true }
         ];
 
         const uploadList = document.getElementById('upload-list');
         const finishBtn = document.getElementById('finish-btn');
         const uploadedFiles = {};
 
-        // Obtener el ID de la solicitud desde la URL
         const urlParams = new URLSearchParams(window.location.search);
         const solicitudId = urlParams.get('id');
 
@@ -127,7 +123,7 @@
                 <div class="flex items-center mb-4 sm:mb-0">
                     <i data-lucide="file-text" class="w-6 h-6 text-gray-400 mr-4"></i>
                     <div>
-                        <p class="font-semibold text-gray-800">${doc.name}</p>
+                        <p class="font-semibold text-gray-800">${doc.name}${doc.required ? '<span class="text-red-500">*</span>' : ''}</p>
                         <p class="text-xs text-gray-500" id="file-name-${doc.id}">Ningún archivo seleccionado</p>
                     </div>
                 </div>
@@ -181,21 +177,22 @@
                 }, 
                 async () => {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    console.log('Archivo disponible en', downloadURL);
                     
                     const docElement = document.getElementById(`doc-${doc.id}`);
                     docElement.querySelector('.file-input-wrapper').parentElement.innerHTML = `<div class="flex items-center text-green-600"><i data-lucide="check-circle" class="w-5 h-5 mr-2"></i> Subido</div>`;
                     lucide.createIcons();
                     
                     uploadedFiles[doc.id] = downloadURL;
-                    checkAllFilesUploaded();
+                    checkRequiredFilesUploaded();
                 }
             );
         }
 
-        function checkAllFilesUploaded() {
-            // Se activa cuando se suben los documentos obligatorios
-            if (uploadedFiles.identificacion && uploadedFiles.compDomicilio && uploadedFiles.csf && uploadedFiles.edosCuenta && uploadedFiles.recibosNomina && uploadedFiles.buro) {
+        function checkRequiredFilesUploaded() {
+            const requiredDocs = documents.filter(d => d.required);
+            const allRequiredUploaded = requiredDocs.every(d => uploadedFiles.hasOwnProperty(d.id));
+            
+            if (allRequiredUploaded) {
                 finishBtn.disabled = false;
                 finishBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
