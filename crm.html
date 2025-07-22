@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM - HomeLoans.mx</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal-overlay { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Contenedor principal para la lógica de autenticación -->
+    <div id="app-container">
+
+        <!-- Pantalla de Login (visible por defecto) -->
+        <div id="login-screen" class="flex items-center justify-center min-h-screen">
+            <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8">
+                <div class="flex justify-center items-center space-x-2 mb-6">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                    <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
+                </div>
+                <h2 class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
+                <form id="login-form" class="mt-6 space-y-4">
+                    <div>
+                        <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
+                        <input type="email" id="email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                    </div>
+                    <div>
+                        <label for="password" class="font-medium text-gray-700">Contraseña</label>
+                        <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                    </div>
+                    <p id="login-error" class="text-sm text-red-600 hidden"></p>
+                    <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">
+                        Iniciar Sesión
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Panel del CRM (oculto por defecto) -->
+        <div id="crm-panel" class="hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm">
+                <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                        <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
+                    </div>
+                    <button id="logout-btn" class="text-sm font-medium text-gray-600 hover:text-emerald-600 flex items-center">
+                        <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>
+                        Cerrar Sesión
+                    </button>
+                </nav>
+            </header>
+
+            <!-- Main Content -->
+            <main class="py-12">
+                <div class="container mx-auto px-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-3xl font-bold text-gray-900">Panel de Solicitudes</h1>
+                        <div class="text-gray-500 flex items-center">
+                            <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
+                            <span id="status-indicator">Conectado en tiempo real</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-500">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Fecha</th>
+                                        <th scope="col" class="px-6 py-3">Nombre</th>
+                                        <th scope="col" class="px-6 py-3">Propósito</th>
+                                        <th scope="col" class="px-6 py-3">Estado</th>
+                                        <th scope="col" class="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leads-table-body">
+                                    <tr id="loading-row"><td colspan="5" class="text-center p-8 text-gray-400">Inicia sesión para ver las solicitudes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal para ver detalles del Lead -->
+    <div id="lead-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden modal-overlay opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col modal-content transform scale-95">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold">Detalles de la Solicitud</h3>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div id="modal-body" class="p-6 md:p-8 overflow-y-auto"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCK20Yfg05KcR0pP3wK27mpqJvMhw1E",
+            authDomain: "homeloan-app.firebaseapp.com",
+            projectId: "homeloan-app",
+            storageBucket: "homeloan-app.appspot.com",
+            messagingSenderId: "786916227313",
+            appId: "1:786916227313:web:888b16e41f4f94dbac1150"
+        };
+        
+        let app;
+        if (!getApps().length) { app = initializeApp(firebaseConfig); } 
+        else { app = getApps()[0]; }
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        lucide.createIcons();
+
+        const loginScreen = document.getElementById('login-screen');
+        const crmPanel = document.getElementById('crm-panel');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+        const tableBody = document.getElementById('leads-table-body');
+        const modal = document.getElementById('lead-modal');
+        const modalBody = document.getElementById('modal-body');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        
+        let leadsData = [];
+        let unsubscribeFromFirestore = null;
+
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                loginScreen.classList.add('hidden');
+                crmPanel.classList.remove('hidden');
+                lucide.createIcons();
+                listenToLeads();
+            } else {
+                loginScreen.classList.remove('hidden');
+                crmPanel.classList.add('hidden');
+                if (unsubscribeFromFirestore) {
+                    unsubscribeFromFirestore();
+                }
+            }
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            loginError.classList.add('hidden');
+            signInWithEmailAndPassword(auth, email, password)
+                .catch(error => {
+                    console.error("Login error:", error);
+                    loginError.textContent = "Correo o contraseña incorrectos.";
+                    loginError.classList.remove('hidden');
+                });
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        function listenToLeads() {
+            const q = query(collection(db, "solicitudes"), orderBy("fecha", "desc"));
+            unsubscribeFromFirestore = onSnapshot(q, (querySnapshot) => {
+                tableBody.innerHTML = '';
+                leadsData = [];
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-400">No hay solicitudes todavía.</td></tr>`;
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    leadsData.push({ id: doc.id, ...doc.data() });
+                    const lead = doc.data();
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
+                        <td class="px-6 py-4">${lead.loanPurpose}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${lead.estado === 'Expediente Completo' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${lead.estado || 'N/A'}</span></td>
+                        <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${doc.id}">Ver Detalles</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }, (error) => {
+                console.error("Error listening to Firestore:", error);
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">Error de permisos. Revisa las reglas de seguridad en Firebase.</td></tr>`;
+            });
+        }
+
+        const formatCurrency = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+        function openModal(leadData) {
+            let detailsHtml = '<div class="space-y-4">';
+            const detailsOrder = {
+                'Información de Contacto': ['fullName', 'email', 'phone'],
+                'Perfil Financiero': ['monthlyIncome', 'creditScore'],
+                'Detalles del Crédito': ['loanPurpose', 'propertyValue', 'downPayment', 'currentBalance', 'currentInterestRate', 'currentBank']
+            };
+            
+            for (const section in detailsOrder) {
+                detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2">${section}</h4><dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">`;
+                detailsOrder[section].forEach(key => {
+                    if (leadData[key]) {
+                        let value = leadData[key];
+                        if (['monthlyIncome', 'propertyValue', 'downPayment', 'currentBalance'].includes(key)) {
+                            value = formatCurrency(value);
+                        }
+                        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        detailsHtml += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">${label}</dt><dd class="text-gray-900">${value}</dd></div>`;
+                    }
+                });
+                detailsHtml += `</dl>`;
+            }
+
+            if (leadData.documentos) {
+                detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-4">Documentos Subidos</h4><ul>`;
+                for (const docName in leadData.documentos) {
+                    detailsHtml += `<li class="py-1"><a href="${leadData.documentos[docName]}" target="_blank" class="text-emerald-600 hover:underline flex items-center"><i data-lucide="file-check-2" class="w-4 h-4 mr-2"></i>${docName.replace(/([A-Z])/g, ' $1')}</a></li>`;
+                }
+                detailsHtml += `</ul>`;
+            }
+            detailsHtml += '</div>';
+
+            modalBody.innerHTML = detailsHtml;
+            lucide.createIcons();
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
+        }
+
+        function closeModal() {
+            modal.classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        tableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('view-details-btn')) {
+                const docId = e.target.dataset.id;
+                const lead = leadsData.find(l => l.id === docId);
+                if(lead) {
+                    openModal(lead);
+                }
+            }
+        });
+
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    </script>
+</body>
+</html>
