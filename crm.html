@@ -219,6 +219,8 @@
                     console.error("Login error:", error.code);
                     if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
                          loginError.textContent = "Correo o contraseña incorrectos.";
+                    } else if (error.code === 'auth/invalid-api-key') {
+                         loginError.textContent = "Error de configuración: La clave de API de Firebase no es válida.";
                     } else {
                          loginError.textContent = "Ocurrió un error. Inténtalo de nuevo.";
                     }
@@ -268,7 +270,11 @@
                 })
                 .catch(error => {
                     console.error("Reset password error:", error);
-                    resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
+                    if (error.code === 'auth/invalid-api-key') {
+                        resetMessage.textContent = 'Error de configuración. No se pudo enviar el correo.';
+                    } else {
+                        resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
+                    }
                     resetMessage.classList.remove('hidden', 'text-green-600');
                     resetMessage.classList.add('text-red-600');
                 });
