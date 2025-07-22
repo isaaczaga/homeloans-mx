@@ -29,22 +29,47 @@
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
                     <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
                 </div>
-                <h2 class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
+                <h2 id="form-title" class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
+                
+                <!-- Formulario de Login -->
                 <form id="login-form" class="mt-6 space-y-4">
                     <div>
                         <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
                         <input type="email" id="email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
                     </div>
-                    <div>
+                    <div class="relative">
                         <label for="password" class="font-medium text-gray-700">Contraseña</label>
-                        <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                        <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 pr-10" required>
+                        <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 top-6 flex items-center px-3 text-gray-500 hover:text-emerald-600">
+                            <i id="eye-icon" data-lucide="eye"></i>
+                            <i id="eye-off-icon" data-lucide="eye-off" class="hidden"></i>
+                        </button>
                     </div>
                     <p id="login-error" class="text-sm text-red-600 hidden"></p>
                     <button type="submit" id="login-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center">
                         <span id="login-btn-text">Iniciar Sesión</span>
                         <span id="login-spinner" class="spinner hidden ml-2"></span>
                     </button>
+                    <div class="text-center text-sm">
+                        <a href="#" id="forgot-password-link" class="font-medium text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</a>
+                    </div>
                 </form>
+
+                <!-- Formulario de Recuperación de Contraseña -->
+                <form id="reset-form" class="hidden mt-6 space-y-4">
+                    <div>
+                        <label for="reset-email" class="font-medium text-gray-700">Correo Electrónico</label>
+                        <input type="email" id="reset-email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                    </div>
+                    <p id="reset-message" class="text-sm text-center hidden"></p>
+                    <button type="submit" id="reset-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">
+                        Enviar Correo de Recuperación
+                    </button>
+                    <div class="text-center text-sm">
+                        <a href="#" id="back-to-login-link" class="font-medium text-emerald-600 hover:underline">Volver a Iniciar Sesión</a>
+                    </div>
+                </form>
+
             </div>
         </div>
 
@@ -111,11 +136,19 @@
     
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+        // --- IMPORTANTE: CONFIGURACIÓN DE FIREBASE ---
+        // El error "auth/api-key-not-valid" significa que una de las claves de abajo es incorrecta o ha cambiado.
+        // Para solucionarlo:
+        // 1. Ve a tu consola de Firebase: https://console.firebase.google.com/
+        // 2. Entra a tu proyecto 'homeloan-app'.
+        // 3. Haz clic en el ícono de engrane (⚙️) > Configuración del proyecto.
+        // 4. En la pestaña "General", desplázate hacia abajo a la sección "Tus apps".
+        // 5. Busca el objeto 'firebaseConfig' y copia y pega los valores actualizados aquí abajo.
         const firebaseConfig = {
-            apiKey: "AIzaSyCK20Yfg05KcR0pP3wK27mpqJvMhw1E",
+            apiKey: "AIzaSyCK20Yfg05KcR0pP3wK27mpqJvMhw1E", // <-- VERIFICA ESTE VALOR
             authDomain: "homeloan-app.firebaseapp.com",
             projectId: "homeloan-app",
             storageBucket: "homeloan-app.appspot.com",
@@ -143,6 +176,15 @@
         const modal = document.getElementById('lead-modal');
         const modalBody = document.getElementById('modal-body');
         const closeModalBtn = document.getElementById('close-modal-btn');
+        const togglePasswordBtn = document.getElementById('toggle-password');
+        const passwordInput = document.getElementById('password');
+        const eyeIcon = document.getElementById('eye-icon');
+        const eyeOffIcon = document.getElementById('eye-off-icon');
+        const forgotPasswordLink = document.getElementById('forgot-password-link');
+        const backToLoginLink = document.getElementById('back-to-login-link');
+        const resetForm = document.getElementById('reset-form');
+        const formTitle = document.getElementById('form-title');
+        const resetMessage = document.getElementById('reset-message');
         
         let leadsData = [];
         let unsubscribeFromFirestore = null;
@@ -165,7 +207,7 @@
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const password = passwordInput.value;
             loginError.classList.add('hidden');
             
             loginBtn.disabled = true;
@@ -191,6 +233,45 @@
 
         logoutBtn.addEventListener('click', () => {
             signOut(auth);
+        });
+
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            eyeIcon.classList.toggle('hidden', isPassword);
+            eyeOffIcon.classList.toggle('hidden', !isPassword);
+        });
+
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            resetForm.classList.remove('hidden');
+            formTitle.textContent = 'Recuperar Contraseña';
+        });
+
+        backToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            formTitle.textContent = 'Acceso al Panel';
+            resetMessage.classList.add('hidden');
+        });
+
+        resetForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    resetMessage.textContent = '¡Correo enviado! Revisa tu bandeja de entrada.';
+                    resetMessage.classList.remove('hidden', 'text-red-600');
+                    resetMessage.classList.add('text-green-600');
+                })
+                .catch(error => {
+                    console.error("Reset password error:", error);
+                    resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
+                    resetMessage.classList.remove('hidden', 'text-green-600');
+                    resetMessage.classList.add('text-red-600');
+                });
         });
 
         function listenToLeads() {
