@@ -92,18 +92,12 @@
             <!-- Main Content -->
             <main class="py-12">
                 <div class="container mx-auto px-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                        <div>
-                            <h1 class="text-3xl font-bold text-gray-900">Panel de Solicitudes</h1>
-                            <div class="text-gray-500 flex items-center mt-1">
-                                <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
-                                <span id="status-indicator">Conectado en tiempo real</span>
-                            </div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h1 class="text-3xl font-bold text-gray-900">Panel de Solicitudes</h1>
+                        <div class="text-gray-500 flex items-center">
+                            <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
+                            <span id="status-indicator">Conectado en tiempo real</span>
                         </div>
-                        <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center">
-                            <i data-lucide="download" class="w-4 h-4 mr-2"></i>
-                            Exportar a CSV
-                        </button>
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -113,15 +107,13 @@
                                     <tr>
                                         <th scope="col" class="px-6 py-3">Fecha</th>
                                         <th scope="col" class="px-6 py-3">Nombre</th>
-                                        <th scope="col" class="px-6 py-3">Teléfono</th>
-                                        <th scope="col" class="px-6 py-3">Ingreso Mensual</th>
-                                        <th scope="col" class="px-6 py-3">Monto Crédito</th>
+                                        <th scope="col" class="px-6 py-3">Propósito</th>
                                         <th scope="col" class="px-6 py-3">Estado</th>
                                         <th scope="col" class="px-6 py-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="leads-table-body">
-                                    <tr id="loading-row"><td colspan="7" class="text-center p-8 text-gray-400">Inicia sesión para ver las solicitudes...</td></tr>
+                                    <tr id="loading-row"><td colspan="5" class="text-center p-8 text-gray-400">Inicia sesión para ver las solicitudes...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -147,13 +139,22 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+        // --- IMPORTANTE: CONFIGURACIÓN DE FIREBASE ---
+        // El error "auth/api-key-not-valid" significa que una de las claves de abajo es incorrecta o ha cambiado.
+        // Para solucionarlo:
+        // 1. Ve a tu consola de Firebase: https://console.firebase.google.com/
+        // 2. Entra a tu proyecto 'homeloan-app'.
+        // 3. Haz clic en el ícono de engrane (⚙️) > Configuración del proyecto.
+        // 4. En la pestaña "General", desplázate hacia abajo a la sección "Tus apps".
+        // 5. Busca el objeto 'firebaseConfig' y REEMPLAZA el objeto de abajo con el tuyo.
         const firebaseConfig = {
-            apiKey: "AIzaSyCK20Yfg05KcR0pP3wK27mpqJvMhw1E",
-            authDomain: "homeloan-app.firebaseapp.com",
-            projectId: "homeloan-app",
-            storageBucket: "homeloan-app.appspot.com",
-            messagingSenderId: "786916227313",
-            appId: "1:786916227313:web:888b16e41f4f94dbac1150"
+        apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
+        authDomain: "homeloan-app.firebaseapp.com",
+        projectId: "homeloan-app",
+        storageBucket: "homeloan-app.firebasestorage.app",
+        messagingSenderId: "786916227313",
+        appId: "1:786916227313:web:088b16e41f4f94dbac1150",
+        measurementId: "G-0YC8V5LM55"
         };
         
         let app;
@@ -185,7 +186,6 @@
         const resetForm = document.getElementById('reset-form');
         const formTitle = document.getElementById('form-title');
         const resetMessage = document.getElementById('reset-message');
-        const exportCsvBtn = document.getElementById('export-csv-btn');
         
         let leadsData = [];
         let unsubscribeFromFirestore = null;
@@ -287,21 +287,18 @@
                 tableBody.innerHTML = '';
                 leadsData = [];
                 if (querySnapshot.empty) {
-                    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-gray-400">No hay solicitudes todavía.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-400">No hay solicitudes todavía.</td></tr>`;
                     return;
                 }
                 querySnapshot.forEach((doc) => {
+                    leadsData.push({ id: doc.id, ...doc.data() });
                     const lead = doc.data();
-                    leadsData.push({ id: doc.id, ...lead });
                     const row = document.createElement('tr');
                     row.className = 'bg-white border-b hover:bg-gray-50';
-                    const loanAmount = lead.loanPurpose === 'compra' ? (lead.propertyValue - lead.downPayment) : lead.currentBalance;
                     row.innerHTML = `
                         <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
                         <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
-                        <td class="px-6 py-4">${lead.phone}</td>
-                        <td class="px-6 py-4">${formatCurrency(lead.monthlyIncome)}</td>
-                        <td class="px-6 py-4">${formatCurrency(loanAmount)}</td>
+                        <td class="px-6 py-4">${lead.loanPurpose}</td>
                         <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${lead.estado === 'Expediente Completo' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${lead.estado || 'N/A'}</span></td>
                         <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${doc.id}">Ver Detalles</button></td>
                     `;
@@ -309,7 +306,7 @@
                 });
             }, (error) => {
                 console.error("Error listening to Firestore:", error);
-                tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-red-500">Error de permisos. Revisa las reglas de seguridad en Firebase.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">Error de permisos. Revisa las reglas de seguridad en Firebase.</td></tr>`;
             });
         }
 
@@ -371,40 +368,6 @@
 
         closeModalBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
-        // --- Lógica para Exportar a CSV ---
-        exportCsvBtn.addEventListener('click', () => {
-            if (leadsData.length === 0) {
-                alert("No hay datos para exportar.");
-                return;
-            }
-            
-            const headers = ['Fecha', 'Nombre', 'Email', 'Telefono', 'Proposito', 'Ingreso Mensual', 'Monto Credito', 'Estado'];
-            const rows = leadsData.map(lead => {
-                const loanAmount = lead.loanPurpose === 'compra' ? (lead.propertyValue - lead.downPayment) : lead.currentBalance;
-                const date = lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A';
-                return [
-                    date,
-                    `"${lead.fullName}"`,
-                    `"${lead.email}"`,
-                    `"${lead.phone}"`,
-                    `"${lead.loanPurpose}"`,
-                    lead.monthlyIncome,
-                    loanAmount,
-                    `"${lead.estado || 'N/A'}"`
-                ].join(',');
-            });
-
-            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "reporte_leads_homeloans.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-
     </script>
 </body>
 </html>
