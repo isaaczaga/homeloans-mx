@@ -13,6 +13,8 @@
         body { font-family: 'Inter', sans-serif; }
         .modal-overlay { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
+        .spinner { border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -38,8 +40,9 @@
                         <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <p id="login-error" class="text-sm text-red-600 hidden"></p>
-                    <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">
-                        Iniciar Sesión
+                    <button type="submit" id="login-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center">
+                        <span id="login-btn-text">Iniciar Sesión</span>
+                        <span id="login-spinner" class="spinner hidden ml-2"></span>
                     </button>
                 </form>
             </div>
@@ -132,6 +135,9 @@
         const crmPanel = document.getElementById('crm-panel');
         const loginForm = document.getElementById('login-form');
         const loginError = document.getElementById('login-error');
+        const loginBtn = document.getElementById('login-btn');
+        const loginBtnText = document.getElementById('login-btn-text');
+        const loginSpinner = document.getElementById('login-spinner');
         const logoutBtn = document.getElementById('logout-btn');
         const tableBody = document.getElementById('leads-table-body');
         const modal = document.getElementById('lead-modal');
@@ -161,11 +167,25 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             loginError.classList.add('hidden');
+            
+            loginBtn.disabled = true;
+            loginBtnText.textContent = 'Iniciando sesión...';
+            loginSpinner.classList.remove('hidden');
+
             signInWithEmailAndPassword(auth, email, password)
                 .catch(error => {
-                    console.error("Login error:", error);
-                    loginError.textContent = "Correo o contraseña incorrectos.";
+                    console.error("Login error:", error.code);
+                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                         loginError.textContent = "Correo o contraseña incorrectos.";
+                    } else {
+                         loginError.textContent = "Ocurrió un error. Inténtalo de nuevo.";
+                    }
                     loginError.classList.remove('hidden');
+                })
+                .finally(() => {
+                    loginBtn.disabled = false;
+                    loginBtnText.textContent = 'Iniciar Sesión';
+                    loginSpinner.classList.add('hidden');
                 });
         });
 
