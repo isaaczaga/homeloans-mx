@@ -30,8 +30,6 @@
                     <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
                 </div>
                 <h2 id="form-title" class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
-                
-                <!-- Formulario de Login -->
                 <form id="login-form" class="mt-6 space-y-4">
                     <div>
                         <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
@@ -54,8 +52,6 @@
                         <a href="#" id="forgot-password-link" class="font-medium text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</a>
                     </div>
                 </form>
-
-                <!-- Formulario de Recuperación de Contraseña -->
                 <form id="reset-form" class="hidden mt-6 space-y-4">
                     <div>
                         <label for="reset-email" class="font-medium text-gray-700">Correo Electrónico</label>
@@ -69,13 +65,11 @@
                         <a href="#" id="back-to-login-link" class="font-medium text-emerald-600 hover:underline">Volver a Iniciar Sesión</a>
                     </div>
                 </form>
-
             </div>
         </div>
 
         <!-- Panel del CRM (oculto por defecto) -->
         <div id="crm-panel" class="hidden">
-            <!-- Header -->
             <header class="bg-white shadow-sm">
                 <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
                     <div class="flex items-center space-x-2">
@@ -89,14 +83,20 @@
                 </nav>
             </header>
 
-            <!-- Main Content -->
             <main class="py-12">
                 <div class="container mx-auto px-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h1 class="text-3xl font-bold text-gray-900">Panel de Solicitudes</h1>
-                        <div class="text-gray-500 flex items-center">
-                            <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
-                            <span id="status-indicator">Conectado en tiempo real</span>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                        <h1 class="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">Panel de Solicitudes</h1>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-gray-500 flex items-center">
+                                <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
+                                <span id="status-indicator">Conectado en tiempo real</span>
+                            </div>
+                            <!-- CAMBIO: Botón para exportar a CSV -->
+                            <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm">
+                                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                                Exportar a CSV
+                            </button>
                         </div>
                     </div>
 
@@ -137,24 +137,15 @@
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // --- IMPORTANTE: CONFIGURACIÓN DE FIREBASE ---
-        // El error "auth/api-key-not-valid" significa que una de las claves de abajo es incorrecta o ha cambiado.
-        // Para solucionarlo:
-        // 1. Ve a tu consola de Firebase: https://console.firebase.google.com/
-        // 2. Entra a tu proyecto 'homeloan-app'.
-        // 3. Haz clic en el ícono de engrane (⚙️) > Configuración del proyecto.
-        // 4. En la pestaña "General", desplázate hacia abajo a la sección "Tus apps".
-        // 5. Busca el objeto 'firebaseConfig' y REEMPLAZA el objeto de abajo con el tuyo.
         const firebaseConfig = {
-        apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
-        authDomain: "homeloan-app.firebaseapp.com",
-        projectId: "homeloan-app",
-        storageBucket: "homeloan-app.firebasestorage.app",
-        messagingSenderId: "786916227313",
-        appId: "1:786916227313:web:088b16e41f4f94dbac1150",
-        measurementId: "G-0YC8V5LM55"
+            apiKey: "PEGA-TU-API-KEY-AQUI",
+            authDomain: "PEGA-TU-AUTH-DOMAIN-AQUI",
+            projectId: "PEGA-TU-PROJECT-ID-AQUI",
+            storageBucket: "PEGA-TU-STORAGE-BUCKET-AQUI",
+            messagingSenderId: "PEGA-TU-MESSAGING-SENDER-ID-AQUI",
+            appId: "PEGA-TU-APP-ID-AQUI"
         };
         
         let app;
@@ -186,6 +177,7 @@
         const resetForm = document.getElementById('reset-form');
         const formTitle = document.getElementById('form-title');
         const resetMessage = document.getElementById('reset-message');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
         
         let leadsData = [];
         let unsubscribeFromFirestore = null;
@@ -210,11 +202,9 @@
             const email = document.getElementById('email').value;
             const password = passwordInput.value;
             loginError.classList.add('hidden');
-            
             loginBtn.disabled = true;
             loginBtnText.textContent = 'Iniciando sesión...';
             loginSpinner.classList.remove('hidden');
-
             signInWithEmailAndPassword(auth, email, password)
                 .catch(error => {
                     console.error("Login error:", error.code);
@@ -234,24 +224,19 @@
                 });
         });
 
-        logoutBtn.addEventListener('click', () => {
-            signOut(auth);
-        });
-
+        logoutBtn.addEventListener('click', () => { signOut(auth); });
         togglePasswordBtn.addEventListener('click', () => {
             const isPassword = passwordInput.type === 'password';
             passwordInput.type = isPassword ? 'text' : 'password';
             eyeIcon.classList.toggle('hidden', isPassword);
             eyeOffIcon.classList.toggle('hidden', !isPassword);
         });
-
         forgotPasswordLink.addEventListener('click', (e) => {
             e.preventDefault();
             loginForm.classList.add('hidden');
             resetForm.classList.remove('hidden');
             formTitle.textContent = 'Recuperar Contraseña';
         });
-
         backToLoginLink.addEventListener('click', (e) => {
             e.preventDefault();
             resetForm.classList.add('hidden');
@@ -259,7 +244,6 @@
             formTitle.textContent = 'Acceso al Panel';
             resetMessage.classList.add('hidden');
         });
-
         resetForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('reset-email').value;
@@ -271,11 +255,7 @@
                 })
                 .catch(error => {
                     console.error("Reset password error:", error);
-                    if (error.code === 'auth/invalid-api-key') {
-                        resetMessage.textContent = 'Error de configuración. No se pudo enviar el correo.';
-                    } else {
-                        resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
-                    }
+                    resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
                     resetMessage.classList.remove('hidden', 'text-green-600');
                     resetMessage.classList.add('text-red-600');
                 });
@@ -299,7 +279,7 @@
                         <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
                         <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
                         <td class="px-6 py-4">${lead.loanPurpose}</td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${lead.estado === 'Expediente Completo' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${lead.estado || 'N/A'}</span></td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(lead.estado)}">${lead.estado || 'Recibida'}</span></td>
                         <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${doc.id}">Ver Detalles</button></td>
                     `;
                     tableBody.appendChild(row);
@@ -310,9 +290,19 @@
             });
         }
 
+        function getStatusClass(status) {
+            switch(status) {
+                case 'Cliente Logrado': return 'bg-green-100 text-green-800';
+                case 'En Seguimiento': return 'bg-blue-100 text-blue-800';
+                case 'En Proceso': return 'bg-purple-100 text-purple-800';
+                case 'Archivado': return 'bg-gray-100 text-gray-800';
+                default: return 'bg-yellow-100 text-yellow-800';
+            }
+        }
+
         const formatCurrency = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
 
-        function openModal(leadData) {
+        function openModal(leadData, leadId) {
             let detailsHtml = '<div class="space-y-4">';
             const detailsOrder = {
                 'Información de Contacto': ['fullName', 'email', 'phone'],
@@ -342,9 +332,19 @@
                 }
                 detailsHtml += `</ul>`;
             }
+            
+            // CAMBIO: Sección para gestionar estado
+            detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-6">Gestionar Estado</h4><div class="flex flex-wrap gap-2 mt-4">
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200" data-status="En Proceso">En Proceso</button>
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-800 hover:bg-green-200" data-status="Cliente Logrado">Cliente Logrado</button>
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="Archivado">Archivado</button>
+            </div>`;
+
             detailsHtml += '</div>';
 
             modalBody.innerHTML = detailsHtml;
+            modalBody.dataset.leadId = leadId; // Guardar el ID del lead en el modal
             lucide.createIcons();
             modal.classList.remove('hidden');
             setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
@@ -361,9 +361,56 @@
                 const docId = e.target.dataset.id;
                 const lead = leadsData.find(l => l.id === docId);
                 if(lead) {
-                    openModal(lead);
+                    openModal(lead, docId);
                 }
             }
+        });
+
+        // CAMBIO: Lógica para actualizar estado
+        modalBody.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('status-btn')) {
+                const newStatus = e.target.dataset.status;
+                const leadId = modalBody.dataset.leadId;
+                if (!leadId) return;
+
+                const leadRef = doc(db, "solicitudes", leadId);
+                try {
+                    await updateDoc(leadRef, { estado: newStatus });
+                    closeModal();
+                } catch (error) {
+                    console.error("Error updating status:", error);
+                    alert("No se pudo actualizar el estado.");
+                }
+            }
+        });
+
+        // CAMBIO: Lógica para exportar a CSV
+        exportCsvBtn.addEventListener('click', () => {
+            if (leadsData.length === 0) {
+                alert("No hay datos para exportar.");
+                return;
+            }
+
+            const headers = Object.keys(leadsData[0]).filter(key => key !== 'documentos' && key !== 'fecha').join(',');
+            const rows = leadsData.map(lead => {
+                const date = lead.fecha ? lead.fecha.toDate().toISOString().split('T')[0] : '';
+                const values = Object.keys(lead)
+                    .filter(key => key !== 'documentos' && key !== 'fecha')
+                    .map(key => `"${lead[key] || ''}"`)
+                    .join(',');
+                return `${date},${values}`;
+            }).join('\n');
+
+            const csvContent = `fecha,${headers}\n${rows}`;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "homeloans_mx_leads.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
 
         closeModalBtn.addEventListener('click', closeModal);
