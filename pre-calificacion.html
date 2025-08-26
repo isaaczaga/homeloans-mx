@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pre-calificación - HomeLoans.mx</title>
+    <title>CRM - HomeLoans.mx</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,217 +11,424 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
-        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type=number], input[type=tel] { -moz-appearance: textfield; }
+        .modal-overlay { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out; }
         .spinner { border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen py-12">
-    <div class="container mx-auto p-4 max-w-2xl">
-        <div class="bg-white rounded-2xl shadow-xl">
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-                <a href="index.html" class="flex items-center space-x-2">
+<body class="bg-gray-100">
+
+    <!-- Contenedor principal para la lógica de autenticación -->
+    <div id="app-container">
+
+        <!-- Pantalla de Login (visible por defecto) -->
+        <div id="login-screen" class="flex items-center justify-center min-h-screen">
+            <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8">
+                <div class="flex justify-center items-center space-x-2 mb-6">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
-                    <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
-                </a>
-                <a href="index.html" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>Volver al inicio</a>
+                    <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
+                </div>
+                <h2 id="form-title" class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
+                
+                <!-- Formulario de Login -->
+                <form id="login-form" class="mt-6 space-y-4">
+                    <div>
+                        <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
+                        <input type="email" id="email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                    </div>
+                    <div class="relative">
+                        <label for="password" class="font-medium text-gray-700">Contraseña</label>
+                        <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 pr-10" required>
+                        <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 top-6 flex items-center px-3 text-gray-500 hover:text-emerald-600">
+                            <i id="eye-icon" data-lucide="eye"></i>
+                            <i id="eye-off-icon" data-lucide="eye-off" class="hidden"></i>
+                        </button>
+                    </div>
+                    <p id="login-error" class="text-sm text-red-600 hidden"></p>
+                    <button type="submit" id="login-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center">
+                        <span id="login-btn-text">Iniciar Sesión</span>
+                        <span id="login-spinner" class="spinner hidden ml-2"></span>
+                    </button>
+                    <div class="text-center text-sm">
+                        <a href="#" id="forgot-password-link" class="font-medium text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</a>
+                    </div>
+                </form>
+
+                <!-- Formulario de Recuperación de Contraseña -->
+                <form id="reset-form" class="hidden mt-6 space-y-4">
+                    <div>
+                        <label for="reset-email" class="font-medium text-gray-700">Correo Electrónico</label>
+                        <input type="email" id="reset-email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                    </div>
+                    <p id="reset-message" class="text-sm text-center hidden"></p>
+                    <button type="submit" id="reset-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">
+                        Enviar Correo de Recuperación
+                    </button>
+                    <div class="text-center text-sm">
+                        <a href="#" id="back-to-login-link" class="font-medium text-emerald-600 hover:underline">Volver a Iniciar Sesión</a>
+                    </div>
+                </form>
+
             </div>
-            <form id="prequal-form" class="p-8">
-                <div class="text-center mb-8">
-                    <h1 class="text-3xl font-bold text-gray-900">Formulario de Pre-calificación</h1>
-                    <p class="mt-2 text-gray-600">Complete los siguientes pasos para iniciar. ¡Solo toma 5 minutos!</p>
-                </div>
-                <div class="mb-8 flex justify-between items-center">
-                    <div class="flex-1"><div class="w-full bg-gray-200 rounded-full h-2"><div id="progress-bar" class="bg-emerald-600 h-2 rounded-full transition-all duration-500" style="width: 25%;"></div></div></div>
-                    <div id="step-counter" class="ml-4 text-sm font-semibold text-emerald-600">Paso 1 de 4</div>
-                </div>
-                <div id="step-1" class="form-step active-step">
-                    <h2 class="text-2xl font-semibold mb-6">Detalles del Crédito</h2>
-                    <div class="space-y-6">
-                        <div>
-                            <label class="font-medium text-gray-700">Propósito del crédito</label>
-                            <div id="loan-purpose-choices" class="mt-2 grid grid-cols-2 gap-4">
-                                <button type="button" data-value="compra" class="form-choice-btn active-choice w-full p-4 border rounded-lg text-center">Comprar</button>
-                                <button type="button" data-value="refinanciamiento" class="form-choice-btn w-full p-4 border rounded-lg text-center">Refinanciar</button>
+        </div>
+
+        <!-- Panel del CRM (oculto por defecto) -->
+        <div id="crm-panel" class="hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm">
+                <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                        <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
+                    </div>
+                    <button id="logout-btn" class="text-sm font-medium text-gray-600 hover:text-emerald-600 flex items-center">
+                        <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>
+                        Cerrar Sesión
+                    </button>
+                </nav>
+            </header>
+
+            <!-- Main Content -->
+            <main class="py-12">
+                <div class="container mx-auto px-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                        <h1 class="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">Panel de Solicitudes</h1>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-gray-500 flex items-center">
+                                <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
+                                <span id="status-indicator">Conectado en tiempo real</span>
                             </div>
-                            <input type="hidden" id="loanPurpose" name="loanPurpose" value="compra">
+                            <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm">
+                                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                                Exportar a CSV
+                            </button>
                         </div>
-                        <div><label for="propertyValue" class="font-medium text-gray-700">Valor de la propiedad (MXN)</label><input type="tel" id="propertyValue" name="propertyValue" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" required></div>
-                        <div id="purchase-fields"><label for="downPayment" class="font-medium text-gray-700">Enganche (MXN)</label><input type="tel" id="downPayment" name="downPayment" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" required></div>
-                        <div id="refinance-fields" class="hidden space-y-6">
-                           <div><label for="currentBalance" class="font-medium text-gray-700">Saldo actual (MXN)</label><input type="tel" id="currentBalance" name="currentBalance" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input"></div>
-                           <div><label for="currentInterestRate" class="font-medium text-gray-700">Tasa de interés actual (%)</label><input type="number" id="currentInterestRate" name="currentInterestRate" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" step="0.01"></div>
-                           <div><label for="currentBank" class="font-medium text-gray-700">Banco actual</label><input type="text" id="currentBank" name="currentBank" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"></div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-500">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Fecha</th>
+                                        <th scope="col" class="px-6 py-3">Nombre</th>
+                                        <th scope="col" class="px-6 py-3">Propósito</th>
+                                        <th scope="col" class="px-6 py-3">Estado</th>
+                                        <th scope="col" class="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leads-table-body">
+                                    <tr id="loading-row"><td colspan="5" class="text-center p-8 text-gray-400">Inicia sesión para ver las solicitudes...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
-                <div id="step-2" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Información de Contacto</h2><div class="space-y-6"><div><label for="fullName" class="font-medium text-gray-700">Nombre Completo</label><input type="text" id="fullName" name="fullName" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="email" class="font-medium text-gray-700">Correo Electrónico</label><input type="email" id="email" name="email" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div><div><label for="phone" class="font-medium text-gray-700">Teléfono (10 dígitos)</label><input type="tel" id="phone" name="phone" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required></div></div></div>
-                <div id="step-3" class="form-step hidden"><h2 class="text-2xl font-semibold mb-6">Perfil Financiero</h2><div class="space-y-6"><div><label for="monthlyIncome" class="font-medium text-gray-700">Ingreso mensual bruto (MXN)</label><input type="tel" id="monthlyIncome" name="monthlyIncome" class="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 money-input" required></div><div><label class="font-medium text-gray-700">Historial de crédito</label><div id="credit-score-choices" class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4"><button type="button" data-value="excelente" class="form-choice-btn w-full p-4 border rounded-lg text-center">Excelente</button><button type="button" data-value="bueno" class="form-choice-btn active-choice w-full p-4 border rounded-lg text-center">Bueno</button><button type="button" data-value="regular" class="form-choice-btn w-full p-4 border rounded-lg text-center">Regular</button></div><input type="hidden" id="creditScore" name="creditScore" value="bueno"></div></div></div>
-                <div id="step-4" class="form-step hidden text-center">
-                    <div class="bg-emerald-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle-2" class="text-emerald-600 w-16 h-16"></i></div>
-                    <h2 id="confirmation-title" class="text-2xl font-bold text-gray-900">¡Solicitud Exitosa!</h2>
-                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">¡Gracias por tu confianza! Hemos guardado tu información. El siguiente paso es confirmar por WhatsApp para solicitarte los documentos.</p>
-                    <div class="mt-8">
-                        <a href="#" id="whatsapp-confirm-btn" target="_blank" class="bg-green-500 text-white font-semibold px-8 py-3 rounded-lg hover:bg-green-600 transition duration-300 inline-flex items-center">
-                            <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>
-                            Confirmar y Pedir Lista de Documentos
-                        </a>
-                    </div>
-                </div>
-                <div id="form-nav" class="mt-10 flex justify-between items-center"><button type="button" id="prev-btn" class="bg-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-300" disabled>Anterior</button><button type="button" id="next-btn" class="bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700">Siguiente</button><button type="submit" id="submit-btn" class="bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 hidden w-48 flex items-center justify-center"><span class="btn-text">Enviar Solicitud</span><span class="spinner hidden ml-2"></span></button></div>
-            </form>
+            </main>
         </div>
     </div>
 
-    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
+    <!-- Modal para ver detalles del Lead -->
+    <div id="lead-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden modal-overlay opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col modal-content transform scale-95">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold">Detalles de la Solicitud</h3>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div id="modal-body" class="p-6 md:p-8 overflow-y-auto"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
-            const steps = Array.from(document.querySelectorAll('.form-step'));
-            const nextBtn = document.getElementById('next-btn');
-            const prevBtn = document.getElementById('prev-btn');
-            const submitBtn = document.getElementById('submit-btn');
-            const form = document.getElementById('prequal-form');
-            const progressBar = document.getElementById('progress-bar');
-            const stepCounter = document.getElementById('step-counter');
-            const formNav = document.getElementById('form-nav');
-            const loanPurposeChoices = document.getElementById('loan-purpose-choices');
-            const purchaseFields = document.getElementById('purchase-fields');
-            const refinanceFields = document.getElementById('refinance-fields');
-            const confirmationTitle = document.getElementById('confirmation-title');
-            const confirmationMessage = document.getElementById('confirmation-message');
-            const whatsappConfirmBtn = document.getElementById('whatsapp-confirm-btn');
+        // --- IMPORTANTE: CONFIGURACIÓN DE FIREBASE ---
+        // El error "auth/api-key-not-valid" significa que una de las claves de abajo es incorrecta o ha cambiado.
+        // Para solucionarlo:
+        // 1. Ve a tu consola de Firebase: https://console.firebase.google.com/
+        // 2. Entra a tu proyecto 'homeloan-app'.
+        // 3. Haz clic en el ícono de engrane (⚙️) > Configuración del proyecto.
+        // 4. En la pestaña "General", desplázate hacia abajo a la sección "Tus apps".
+        // 5. Busca el objeto 'firebaseConfig' y REEMPLAZA el objeto de abajo con el tuyo.
+        const firebaseConfig = {
+            apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
+            authDomain: "PEGA-TU-AUTH-DOMAIN-AQUI",
+            projectId: "PEGA-TU-PROJECT-ID-AQUI",
+            storageBucket: "PEGA-TU-STORAGE-BUCKET-AQUI",
+            messagingSenderId: "PEGA-TU-MESSAGING-SENDER-ID-AQUI",
+            appId: "PEGA-TU-APP-ID-AQUI"
+        };
+        
+        let app;
+        if (!getApps().length) { app = initializeApp(firebaseConfig); } 
+        else { app = getApps()[0]; }
 
-            let currentStep = 0;
-            const totalSteps = steps.filter(s => !s.id.includes('4')).length;
-            const formatNumber = (value) => value ? value.toString().replace(/[^\d.]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
-            const unformatNumber = (value) => value.toString().replace(/,/g, '');
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        lucide.createIcons();
 
-            nextBtn.addEventListener('click', () => { if (validateStep(currentStep)) { currentStep++; updateFormSteps(); } });
-            prevBtn.addEventListener('click', () => { currentStep--; updateFormSteps(); });
+        const loginScreen = document.getElementById('login-screen');
+        const crmPanel = document.getElementById('crm-panel');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const loginBtn = document.getElementById('login-btn');
+        const loginBtnText = document.getElementById('login-btn-text');
+        const loginSpinner = document.getElementById('login-spinner');
+        const logoutBtn = document.getElementById('logout-btn');
+        const tableBody = document.getElementById('leads-table-body');
+        const modal = document.getElementById('lead-modal');
+        const modalBody = document.getElementById('modal-body');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const togglePasswordBtn = document.getElementById('toggle-password');
+        const passwordInput = document.getElementById('password');
+        const eyeIcon = document.getElementById('eye-icon');
+        const eyeOffIcon = document.getElementById('eye-off-icon');
+        const forgotPasswordLink = document.getElementById('forgot-password-link');
+        const backToLoginLink = document.getElementById('back-to-login-link');
+        const resetForm = document.getElementById('reset-form');
+        const formTitle = document.getElementById('form-title');
+        const resetMessage = document.getElementById('reset-message');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        
+        let leadsData = [];
+        let unsubscribeFromFirestore = null;
 
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!validateStep(currentStep)) return;
-                const submitBtnText = submitBtn.querySelector('.btn-text');
-                const spinner = submitBtn.querySelector('.spinner');
-                submitBtn.disabled = true;
-                submitBtnText.classList.add('hidden');
-                spinner.classList.remove('hidden');
-                
-                const formData = new FormData(form);
-                const data = {};
-                for (let [key, value] of formData.entries()) {
-                    const input = form.querySelector(`[name="${key}"]`);
-                    if (input && (input.classList.contains('money-input') || input.type === 'tel')) {
-                        data[key] = unformatNumber(value);
-                    } else { data[key] = value; }
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                loginScreen.classList.add('hidden');
+                crmPanel.classList.remove('hidden');
+                lucide.createIcons();
+                listenToLeads();
+            } else {
+                loginScreen.classList.remove('hidden');
+                crmPanel.classList.add('hidden');
+                if (unsubscribeFromFirestore) {
+                    unsubscribeFromFirestore();
                 }
-
-                try {
-                    const response = await fetch('/api/enviar-calificacion', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data),
-                    });
-                    
-                    const result = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(result.message || 'Error en la respuesta del servidor');
-                    }
-                    
-                    if(result.success && result.docId) {
-                        const clientName = data.fullName;
-                        const businessPhone = "525610074116";
-                        
-                        const documentList = `\n- *INE o PASAPORTE*\n- *CSF (constancia de situación fiscal actual)*\n- *Comprobante de domicilio residencial (actual)*\n- *Acta de Nacimiento*\n- *Acta de Matrimonio*\n- *Últimos 6 estados de cuenta (completos)*\n- *(Último recibo de nómina, en su caso)*\n- *Última declaración anual*\n- *Buró de crédito especial:* https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
-                        const message = `Estimado ${clientName} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!\n\nA partir de ahora puedes compartir a este chat o al correo i-zaga@creditaria.com la siguiente información en PDF:${documentList}`;
-                        
-                        const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
-                        
-                        whatsappConfirmBtn.href = whatsappUrl;
-                        
-                        currentStep++;
-                        updateFormSteps();
-                    } else {
-                        throw new Error(result.message || 'API devolvió un error desconocido');
-                    }
-                } catch (error) {
-                    console.error('Submission failed:', error);
-                    showErrorConfirmation(error.message);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtnText.classList.remove('hidden');
-                    spinner.classList.add('hidden');
-                }
-            });
-            
-            document.querySelectorAll('.form-choice-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const parent = button.parentElement;
-                    const hiddenInput = parent.nextElementSibling;
-                    parent.querySelectorAll('.form-choice-btn').forEach(btn => btn.classList.remove('active-choice', 'bg-emerald-100', 'border-emerald-500', 'text-emerald-700', 'font-semibold'));
-                    button.classList.add('active-choice', 'bg-emerald-100', 'border-emerald-500', 'text-emerald-700', 'font-semibold');
-                    if (hiddenInput) hiddenInput.value = button.dataset.value;
-                    if(parent.id === 'loan-purpose-choices') toggleLoanPurposeFields(button.dataset.value);
-                });
-            });
-
-            document.querySelectorAll('.money-input').forEach(input => { input.addEventListener('input', (e) => e.target.value = formatNumber(e.target.value)); });
-
-            function toggleLoanPurposeFields(purpose) {
-                const isPurchase = purpose === 'compra';
-                purchaseFields.classList.toggle('hidden', !isPurchase);
-                refinanceFields.classList.toggle('hidden', isPurchase);
-                purchaseFields.querySelectorAll('input').forEach(i => i.required = isPurchase);
-                refinanceFields.querySelectorAll('input').forEach(i => i.required = !isPurchase);
             }
-
-            function updateFormSteps() {
-                steps.forEach((step, index) => step.classList.toggle('hidden', index !== currentStep));
-                const progress = ((currentStep + 1) / (totalSteps + 1)) * 100;
-                progressBar.style.width = `${progress}%`;
-                stepCounter.textContent = `Paso ${currentStep + 1} de ${totalSteps + 1}`;
-                prevBtn.disabled = currentStep === 0;
-                if (currentStep === totalSteps - 1) { nextBtn.classList.add('hidden'); submitBtn.classList.remove('hidden'); } 
-                else if (currentStep >= totalSteps) { formNav.classList.add('hidden'); stepCounter.textContent = `Completado`; } 
-                else { nextBtn.classList.remove('hidden'); submitBtn.classList.add('hidden'); }
-            }
-
-            function validateStep(stepIndex) {
-                const inputs = steps[stepIndex].querySelectorAll('input[required]');
-                let isValid = true;
-                inputs.forEach(input => {
-                    input.classList.remove('border-red-500');
-                    if (!input.value.trim()) { isValid = false; input.classList.add('border-red-500'); input.placeholder = "Este campo es obligatorio"; }
-                });
-                return isValid;
-            }
-
-            function showErrorConfirmation(errorMessage = "No pudimos procesar tu solicitud. Por favor, inténtalo de nuevo o contáctanos.") {
-                confirmationTitle.textContent = "Ocurrió un Error";
-                confirmationMessage.textContent = errorMessage;
-                const iconContainer = document.getElementById('step-4').querySelector('div:first-child');
-                const icon = iconContainer ? iconContainer.querySelector('i') : null;
-                if (iconContainer && icon) {
-                    iconContainer.classList.remove('bg-emerald-100');
-                    iconContainer.classList.add('bg-red-100');
-                    icon.setAttribute('data-lucide', 'x-circle');
-                    icon.classList.remove('text-emerald-600');
-                    icon.classList.add('text-red-600');
-                    lucide.createIcons();
-                }
-                whatsappConfirmBtn.style.display = 'none';
-                currentStep++;
-                updateFormSteps();
-            }
-
-            document.querySelectorAll('.active-choice').forEach(button => button.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-700', 'font-semibold'));
-            toggleLoanPurposeFields(document.getElementById('loanPurpose').value);
         });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = passwordInput.value;
+            loginError.classList.add('hidden');
+            loginBtn.disabled = true;
+            loginBtnText.textContent = 'Iniciando sesión...';
+            loginSpinner.classList.remove('hidden');
+            signInWithEmailAndPassword(auth, email, password)
+                .catch(error => {
+                    console.error("Login error:", error.code);
+                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                         loginError.textContent = "Correo o contraseña incorrectos.";
+                    } else if (error.code === 'auth/invalid-api-key') {
+                         loginError.textContent = "Error de configuración: La clave de API de Firebase no es válida.";
+                    } else {
+                         loginError.textContent = "Ocurrió un error. Inténtalo de nuevo.";
+                    }
+                    loginError.classList.remove('hidden');
+                })
+                .finally(() => {
+                    loginBtn.disabled = false;
+                    loginBtnText.textContent = 'Iniciar Sesión';
+                    loginSpinner.classList.add('hidden');
+                });
+        });
+
+        logoutBtn.addEventListener('click', () => { signOut(auth); });
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            eyeIcon.classList.toggle('hidden', isPassword);
+            eyeOffIcon.classList.toggle('hidden', !isPassword);
+        });
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            resetForm.classList.remove('hidden');
+            formTitle.textContent = 'Recuperar Contraseña';
+        });
+        backToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            formTitle.textContent = 'Acceso al Panel';
+            resetMessage.classList.add('hidden');
+        });
+        resetForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    resetMessage.textContent = '¡Correo enviado! Revisa tu bandeja de entrada.';
+                    resetMessage.classList.remove('hidden', 'text-red-600');
+                    resetMessage.classList.add('text-green-600');
+                })
+                .catch(error => {
+                    console.error("Reset password error:", error);
+                    resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
+                    resetMessage.classList.remove('hidden', 'text-green-600');
+                    resetMessage.classList.add('text-red-600');
+                });
+        });
+
+        function listenToLeads() {
+            const q = query(collection(db, "solicitudes"), orderBy("fecha", "desc"));
+            unsubscribeFromFirestore = onSnapshot(q, (querySnapshot) => {
+                tableBody.innerHTML = '';
+                leadsData = [];
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-400">No hay solicitudes todavía.</td></tr>`;
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    leadsData.push({ id: doc.id, ...doc.data() });
+                    const lead = doc.data();
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
+                        <td class="px-6 py-4">${lead.loanPurpose}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(lead.estado)}">${lead.estado || 'Recibida'}</span></td>
+                        <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${doc.id}">Ver Detalles</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }, (error) => {
+                console.error("Error listening to Firestore:", error);
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">
+                    <strong class="font-semibold">Error de Permisos</strong><br>
+                    No se pudo leer la lista de solicitudes. Por favor, ve a tu consola de Firebase, entra a Firestore Database > Reglas y asegúrate de que el permiso de lectura ('read') esté permitido para usuarios autenticados.
+                </td></tr>`;
+            });
+        }
+
+        function getStatusClass(status) {
+            switch(status) {
+                case 'Cliente Logrado': return 'bg-green-100 text-green-800';
+                case 'En Seguimiento': return 'bg-blue-100 text-blue-800';
+                case 'En Proceso': return 'bg-purple-100 text-purple-800';
+                case 'Archivado': return 'bg-gray-100 text-gray-800';
+                default: return 'bg-yellow-100 text-yellow-800';
+            }
+        }
+
+        const formatCurrency = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+        function openModal(leadData, leadId) {
+            let detailsHtml = '<div class="space-y-4">';
+            const detailsOrder = {
+                'Información de Contacto': ['fullName', 'email', 'phone'],
+                'Perfil Financiero': ['monthlyIncome', 'creditScore'],
+                'Detalles del Crédito': ['loanPurpose', 'propertyValue', 'downPayment', 'currentBalance', 'currentInterestRate', 'currentBank']
+            };
+            
+            for (const section in detailsOrder) {
+                detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2">${section}</h4><dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">`;
+                detailsOrder[section].forEach(key => {
+                    if (leadData[key]) {
+                        let value = leadData[key];
+                        if (['monthlyIncome', 'propertyValue', 'downPayment', 'currentBalance'].includes(key)) {
+                            value = formatCurrency(value);
+                        }
+                        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        detailsHtml += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">${label}</dt><dd class="text-gray-900">${value}</dd></div>`;
+                    }
+                });
+                detailsHtml += `</dl>`;
+            }
+
+            if (leadData.documentos) {
+                detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-4">Documentos Subidos</h4><ul>`;
+                for (const docName in leadData.documentos) {
+                    detailsHtml += `<li class="py-1"><a href="${leadData.documentos[docName]}" target="_blank" class="text-emerald-600 hover:underline flex items-center"><i data-lucide="file-check-2" class="w-4 h-4 mr-2"></i>${docName.replace(/([A-Z])/g, ' $1')}</a></li>`;
+                }
+                detailsHtml += `</ul>`;
+            }
+            
+            detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-6">Gestionar Estado</h4><div class="flex flex-wrap gap-2 mt-4">
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200" data-status="En Proceso">En Proceso</button>
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-800 hover:bg-green-200" data-status="Cliente Logrado">Cliente Logrado</button>
+                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="Archivado">Archivado</button>
+            </div>`;
+
+            detailsHtml += '</div>';
+
+            modalBody.innerHTML = detailsHtml;
+            modalBody.dataset.leadId = leadId;
+            lucide.createIcons();
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
+        }
+
+        function closeModal() {
+            modal.classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        tableBody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('view-details-btn')) {
+                const docId = e.target.dataset.id;
+                const lead = leadsData.find(l => l.id === docId);
+                if(lead) {
+                    openModal(lead, docId);
+                }
+            }
+        });
+
+        modalBody.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('status-btn')) {
+                const newStatus = e.target.dataset.status;
+                const leadId = modalBody.dataset.leadId;
+                if (!leadId) return;
+
+                const leadRef = doc(db, "solicitudes", leadId);
+                try {
+                    await updateDoc(leadRef, { estado: newStatus });
+                    closeModal();
+                } catch (error) {
+                    console.error("Error updating status:", error);
+                    alert("No se pudo actualizar el estado.");
+                }
+            }
+        });
+
+        exportCsvBtn.addEventListener('click', () => {
+            if (leadsData.length === 0) {
+                alert("No hay datos para exportar.");
+                return;
+            }
+
+            const headers = Object.keys(leadsData[0]).filter(key => key !== 'documentos' && key !== 'fecha').join(',');
+            const rows = leadsData.map(lead => {
+                const date = lead.fecha ? lead.fecha.toDate().toISOString().split('T')[0] : '';
+                const values = Object.keys(lead)
+                    .filter(key => key !== 'documentos' && key !== 'fecha')
+                    .map(key => `"${lead[key] || ''}"`)
+                    .join(',');
+                return `${date},${values}`;
+            }).join('\n');
+
+            const csvContent = `fecha,${headers}\n${rows}`;
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "homeloans_mx_leads.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     </script>
 </body>
 </html>
