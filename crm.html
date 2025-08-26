@@ -30,6 +30,8 @@
                     <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
                 </div>
                 <h2 id="form-title" class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
+                
+                <!-- Formulario de Login -->
                 <form id="login-form" class="mt-6 space-y-4">
                     <div>
                         <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
@@ -52,6 +54,8 @@
                         <a href="#" id="forgot-password-link" class="font-medium text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</a>
                     </div>
                 </form>
+
+                <!-- Formulario de Recuperación de Contraseña -->
                 <form id="reset-form" class="hidden mt-6 space-y-4">
                     <div>
                         <label for="reset-email" class="font-medium text-gray-700">Correo Electrónico</label>
@@ -65,11 +69,13 @@
                         <a href="#" id="back-to-login-link" class="font-medium text-emerald-600 hover:underline">Volver a Iniciar Sesión</a>
                     </div>
                 </form>
+
             </div>
         </div>
 
         <!-- Panel del CRM (oculto por defecto) -->
         <div id="crm-panel" class="hidden">
+            <!-- Header -->
             <header class="bg-white shadow-sm">
                 <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
                     <div class="flex items-center space-x-2">
@@ -83,6 +89,7 @@
                 </nav>
             </header>
 
+            <!-- Main Content -->
             <main class="py-12">
                 <div class="container mx-auto px-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -92,7 +99,6 @@
                                 <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
                                 <span id="status-indicator">Conectado en tiempo real</span>
                             </div>
-                            <!-- CAMBIO: Botón para exportar a CSV -->
                             <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm">
                                 <i data-lucide="download" class="w-4 h-4 mr-2"></i>
                                 Exportar a CSV
@@ -139,8 +145,16 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+        // --- IMPORTANTE: CONFIGURACIÓN DE FIREBASE ---
+        // El error "auth/api-key-not-valid" significa que una de las claves de abajo es incorrecta o ha cambiado.
+        // Para solucionarlo:
+        // 1. Ve a tu consola de Firebase: https://console.firebase.google.com/
+        // 2. Entra a tu proyecto 'homeloan-app'.
+        // 3. Haz clic en el ícono de engrane (⚙️) > Configuración del proyecto.
+        // 4. En la pestaña "General", desplázate hacia abajo a la sección "Tus apps".
+        // 5. Busca el objeto 'firebaseConfig' y REEMPLAZA el objeto de abajo con el tuyo.
         const firebaseConfig = {
-            apiKey: "PEGA-TU-API-KEY-AQUI",
+            apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
             authDomain: "PEGA-TU-AUTH-DOMAIN-AQUI",
             projectId: "PEGA-TU-PROJECT-ID-AQUI",
             storageBucket: "PEGA-TU-STORAGE-BUCKET-AQUI",
@@ -286,7 +300,10 @@
                 });
             }, (error) => {
                 console.error("Error listening to Firestore:", error);
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">Error de permisos. Revisa las reglas de seguridad en Firebase.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">
+                    <strong class="font-semibold">Error de Permisos</strong><br>
+                    No se pudo leer la lista de solicitudes. Por favor, ve a tu consola de Firebase, entra a Firestore Database > Reglas y asegúrate de que el permiso de lectura ('read') esté permitido para usuarios autenticados.
+                </td></tr>`;
             });
         }
 
@@ -333,7 +350,6 @@
                 detailsHtml += `</ul>`;
             }
             
-            // CAMBIO: Sección para gestionar estado
             detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-6">Gestionar Estado</h4><div class="flex flex-wrap gap-2 mt-4">
                 <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
                 <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200" data-status="En Proceso">En Proceso</button>
@@ -344,7 +360,7 @@
             detailsHtml += '</div>';
 
             modalBody.innerHTML = detailsHtml;
-            modalBody.dataset.leadId = leadId; // Guardar el ID del lead en el modal
+            modalBody.dataset.leadId = leadId;
             lucide.createIcons();
             modal.classList.remove('hidden');
             setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
@@ -366,7 +382,6 @@
             }
         });
 
-        // CAMBIO: Lógica para actualizar estado
         modalBody.addEventListener('click', async (e) => {
             if (e.target.classList.contains('status-btn')) {
                 const newStatus = e.target.dataset.status;
@@ -384,7 +399,6 @@
             }
         });
 
-        // CAMBIO: Lógica para exportar a CSV
         exportCsvBtn.addEventListener('click', () => {
             if (leadsData.length === 0) {
                 alert("No hay datos para exportar.");
@@ -418,3 +432,4 @@
     </script>
 </body>
 </html>
+
