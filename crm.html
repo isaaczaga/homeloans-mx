@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- CAMBIO: Se añadió Tone.js para el sonido -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -197,8 +196,8 @@
         
         let allLeads = [];
         let unsubscribeFromFirestore = null;
-        let isInitialLoad = true; // Para evitar sonido en la carga inicial
-        let bellSynth; // Sintetizador para el sonido
+        let isInitialLoad = true;
+        let notificationSynth;
 
         onAuthStateChanged(auth, user => {
             if (user) {
@@ -225,17 +224,16 @@
             loginSpinner.classList.remove('hidden');
             signInWithEmailAndPassword(auth, email, password)
                 .then(() => {
-                    // CAMBIO: Iniciar el contexto de audio después de la interacción del usuario
                     if (Tone.context.state !== 'running') {
                         Tone.start();
                     }
-                    bellSynth = new Tone.MetalSynth({
-                        frequency: 200,
-                        envelope: { attack: 0.001, decay: 1.4, release: 0.2 },
-                        harmonicity: 5.1,
-                        modulationIndex: 32,
-                        resonance: 4000,
-                        octaves: 1.5
+                    // CAMBIO: Sonido "Cristalino" implementado
+                    notificationSynth = new Tone.FMSynth({
+                        harmonicity: 8, modulationIndex: 2, detune: 0,
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 1 },
+                        modulation: { type: "square" },
+                        modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
                     }).toDestination();
                 })
                 .catch(error => {
@@ -296,12 +294,11 @@
         function listenToLeads() {
             const q = query(collection(db, "solicitudes"), orderBy("fecha", "desc"));
             unsubscribeFromFirestore = onSnapshot(q, (snapshot) => {
-                // CAMBIO: Lógica para detectar nuevos leads y tocar el sonido
                 snapshot.docChanges().forEach((change) => {
                     if (change.type === "added" && !isInitialLoad) {
-                        console.log("Nuevo lead detectado:", change.doc.data());
-                        if (bellSynth) {
-                            bellSynth.triggerAttackRelease("C5", "8n");
+                        if (notificationSynth) {
+                            // CAMBIO: Trigger para el sonido "Cristalino"
+                            notificationSynth.triggerAttackRelease("C6", "4n");
                         }
                     }
                 });
@@ -311,7 +308,7 @@
                     allLeads.push({ id: doc.id, ...doc.data() });
                 });
                 renderTable();
-                isInitialLoad = false; // Marcar que la carga inicial ya pasó
+                isInitialLoad = false;
 
             }, (error) => {
                 console.error("Error listening to Firestore:", error);
