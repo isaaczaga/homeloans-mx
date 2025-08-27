@@ -1,19 +1,4 @@
-Guía Definitiva: Corrección de Permisos del CRMPara que tu CRM pueda leer los datos de los prospectos, necesitamos actualizar las reglas de seguridad de tu base de datos.Paso 1: Actualizar las Reglas de Seguridad en FirebaseEsta es la parte más importante. Vamos a darle permiso de lectura a tu usuario administrador.Ve a tu Consola de Firebase: console.firebase.google.comSelecciona tu proyecto (homeloan-app).En el menú de la izquierda, en la sección "Compilación", haz clic en Firestore Database.Una vez dentro de Firestore, ve a la pestaña "Reglas".Reemplaza todo el contenido que tengas en el editor con las siguientes reglas. Este código asegura que solo un usuario que haya iniciado sesión pueda leer o actualizar los datos.rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /solicitudes/{solicitudId} {
-      // Solo usuarios autenticados pueden leer y actualizar el estado.
-      allow read, update: if request.auth != null;
 
-      // Nadie puede borrar desde la aplicación.
-      allow delete: if false;
-
-      // Cualquiera puede crear una nueva solicitud (desde el formulario público).
-      allow create: if true;
-    }
-  }
-}
-Haz clic en el botón "Publicar".Paso 2: Usar el Código del CRM ActualizadoPara asegurarnos de que todo funcione correctamente y que tengas la mejor versión, por favor, reemplaza todo el contenido de tu archivo crm.html con el siguiente código. He mejorado el manejo de errores para que, si alguna vez las reglas fallan, te dé un mensaje más claro.<details><summary><strong>📄 crm.html (Código Final y Corregido)</strong></summary><!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
