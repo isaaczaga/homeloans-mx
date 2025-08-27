@@ -91,9 +91,17 @@
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                         <h1 class="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">Panel de Solicitudes</h1>
                         <div class="flex items-center space-x-4">
-                            <div class="text-gray-500 flex items-center">
-                                <i data-lucide="activity" class="w-5 h-5 mr-2 text-green-500"></i>
-                                <span id="status-indicator">Conectado en tiempo real</span>
+                             <!-- CAMBIO: Filtro de estado -->
+                            <div>
+                                <label for="status-filter" class="text-sm font-medium text-gray-700">Filtrar por estado:</label>
+                                <select id="status-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md">
+                                    <option value="Todos">Todos</option>
+                                    <option value="Recibida">Recibida</option>
+                                    <option value="En Seguimiento">En Seguimiento</option>
+                                    <option value="En Proceso">En Proceso</option>
+                                    <option value="Cliente Logrado">Cliente Logrado</option>
+                                    <option value="Archivado">Archivado</option>
+                                </select>
                             </div>
                             <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm">
                                 <i data-lucide="download" class="w-4 h-4 mr-2"></i>
@@ -109,9 +117,9 @@
                                     <tr>
                                         <th scope="col" class="px-6 py-3">Fecha</th>
                                         <th scope="col" class="px-6 py-3">Nombre</th>
-                                        <th scope="col" class="px-6 py-3">Teléfono</th>
-                                        <th scope="col" class="px-6 py-3">Correo</th>
-                                        <th scope="col" class="px-6 py-3">Monto Crédito</th>
+                                        <th scope="col" class="px-6 py-3">Ingreso Mensual</th>
+                                        <th scope="col" class="px-6 py-3">Valor Propiedad</th>
+                                        <th scope="col" class="px-6 py-3">Propósito</th>
                                         <th scope="col" class="px-6 py-3">Estado</th>
                                         <th scope="col" class="px-6 py-3"></th>
                                     </tr>
@@ -141,7 +149,7 @@
     <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
         apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
@@ -183,8 +191,9 @@
         const formTitle = document.getElementById('form-title');
         const resetMessage = document.getElementById('reset-message');
         const exportCsvBtn = document.getElementById('export-csv-btn');
+        const statusFilter = document.getElementById('status-filter');
         
-        let leadsData = [];
+        let allLeads = [];
         let unsubscribeFromFirestore = null;
 
         onAuthStateChanged(auth, user => {
@@ -269,32 +278,11 @@
         function listenToLeads() {
             const q = query(collection(db, "solicitudes"), orderBy("fecha", "desc"));
             unsubscribeFromFirestore = onSnapshot(q, (querySnapshot) => {
-                tableBody.innerHTML = '';
-                leadsData = [];
-                if (querySnapshot.empty) {
-                    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-gray-400">No hay solicitudes todavía.</td></tr>`;
-                    return;
-                }
+                allLeads = [];
                 querySnapshot.forEach((doc) => {
-                    const lead = doc.data();
-                    leadsData.push({ id: doc.id, ...lead });
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'bg-white border-b hover:bg-gray-50';
-                    
-                    const loanAmount = lead.loanPurpose === 'compra' ? (lead.propertyValue - lead.downPayment) : lead.currentBalance;
-
-                    row.innerHTML = `
-                        <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
-                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
-                        <td class="px-6 py-4">${lead.phone || 'N/A'}</td>
-                        <td class="px-6 py-4">${lead.email || 'N/A'}</td>
-                        <td class="px-6 py-4 font-medium">${formatCurrency(loanAmount || 0)}</td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(lead.estado)}">${lead.estado || 'Recibida'}</span></td>
-                        <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${doc.id}">Ver Detalles</button></td>
-                    `;
-                    tableBody.appendChild(row);
+                    allLeads.push({ id: doc.id, ...doc.data() });
                 });
+                renderTable();
             }, (error) => {
                 console.error("Error listening to Firestore:", error);
                 tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-red-500">
@@ -303,6 +291,34 @@
                 </td></tr>`;
             });
         }
+
+        function renderTable() {
+            const filterValue = statusFilter.value;
+            const filteredLeads = filterValue === 'Todos' ? allLeads : allLeads.filter(lead => (lead.estado || 'Recibida') === filterValue);
+
+            tableBody.innerHTML = '';
+            if (filteredLeads.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-gray-400">No hay solicitudes con este estado.</td></tr>`;
+                return;
+            }
+            filteredLeads.forEach((lead) => {
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b hover:bg-gray-50';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
+                    <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
+                    <td class="px-6 py-4">${formatCurrency(lead.monthlyIncome || 0)}</td>
+                    <td class="px-6 py-4">${formatCurrency(lead.propertyValue || 0)}</td>
+                    <td class="px-6 py-4">${lead.loanPurpose || 'N/A'}</td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(lead.estado)}">${lead.estado || 'Recibida'}</span></td>
+                    <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${lead.id}">Ver Detalles</button></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        statusFilter.addEventListener('change', renderTable);
 
         function getStatusClass(status) {
             switch(status) {
@@ -347,11 +363,23 @@
                 detailsHtml += `</ul>`;
             }
             
-            detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-6">Gestionar Estado</h4><div class="flex flex-wrap gap-2 mt-4">
+            detailsHtml += `<div id="ai-action-plan-section">
+                <h4 class="text-lg font-semibold border-b pb-2 mt-6">Plan de Acción con IA</h4>
+                <div class="mt-4">
+                    <button id="generate-plan-btn" class="w-full bg-emerald-100 text-emerald-800 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center">
+                        <i data-lucide="sparkles" class="w-4 h-4 mr-2"></i>
+                        Generar Siguientes Pasos
+                    </button>
+                    <div id="ai-plan-output" class="mt-4 p-4 bg-gray-50 rounded-lg text-sm text-gray-700 hidden"></div>
+                </div>
+            </div>`;
+
+            detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-6">Gestionar Prospecto</h4><div class="flex flex-wrap gap-2 mt-4">
                 <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
                 <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200" data-status="En Proceso">En Proceso</button>
                 <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-800 hover:bg-green-200" data-status="Cliente Logrado">Cliente Logrado</button>
                 <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="Archivado">Archivado</button>
+                <button id="delete-btn" class="ml-auto text-sm font-medium px-3 py-1 rounded-full bg-red-100 text-red-800 hover:bg-red-200 flex items-center"><i data-lucide="trash-2" class="w-4 h-4 mr-1"></i>Eliminar</button>
             </div>`;
 
             detailsHtml += '</div>';
@@ -372,7 +400,7 @@
         tableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('view-details-btn')) {
                 const docId = e.target.dataset.id;
-                const lead = leadsData.find(l => l.id === docId);
+                const lead = allLeads.find(l => l.id === docId);
                 if(lead) {
                     openModal(lead, docId);
                 }
@@ -380,11 +408,11 @@
         });
 
         modalBody.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('status-btn')) {
-                const newStatus = e.target.dataset.status;
-                const leadId = modalBody.dataset.leadId;
-                if (!leadId) return;
+            const leadId = modalBody.dataset.leadId;
+            if (!leadId) return;
 
+            if (e.target.closest('.status-btn')) {
+                const newStatus = e.target.closest('.status-btn').dataset.status;
                 const leadRef = doc(db, "solicitudes", leadId);
                 try {
                     await updateDoc(leadRef, { estado: newStatus });
@@ -394,40 +422,69 @@
                     alert("No se pudo actualizar el estado.");
                 }
             }
+            
+            if (e.target.closest('#delete-btn')) {
+                if (confirm("¿Estás seguro de que quieres eliminar este prospecto? Esta acción no se puede deshacer.")) {
+                    const leadRef = doc(db, "solicitudes", leadId);
+                    try {
+                        await deleteDoc(leadRef);
+                        closeModal();
+                    } catch (error) {
+                        console.error("Error deleting document:", error);
+                        alert("No se pudo eliminar el prospecto.");
+                    }
+                }
+            }
+            
+            if (e.target.closest('#generate-plan-btn')) {
+                const generateBtn = e.target.closest('#generate-plan-btn');
+                const outputDiv = document.getElementById('ai-plan-output');
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = '<span class="spinner"></span><span class="ml-2">Generando...</span>';
+                outputDiv.classList.remove('hidden');
+                outputDiv.innerHTML = 'Contactando al asistente de IA...';
+
+                const lead = allLeads.find(l => l.id === leadId);
+                try {
+                    // --- SIMULACIÓN DE API ---
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    const samplePlan = `<h4>Plan de Seguimiento para ${lead.fullName}</h4><p><strong>Saludo Inicial:</strong> "Hola ${lead.fullName}, te contacto de HomeLoans.mx para dar seguimiento a tu solicitud de crédito para ${lead.loanPurpose}."</p><p><strong>Puntos a Discutir:</strong><br>- Confirmar el valor de la propiedad de ${formatCurrency(lead.propertyValue)}.<br>- Explorar opciones de financiamiento basadas en su ingreso de ${formatCurrency(lead.monthlyIncome)}.</p><p><strong>Siguientes Pasos:</strong> Solicitar los documentos iniciales (INE, CSF, Comprobante de Domicilio).</p>`;
+                    outputDiv.innerHTML = samplePlan;
+                } catch (error) {
+                    outputDiv.innerHTML = 'No se pudo generar el plan en este momento.';
+                } finally {
+                    generateBtn.disabled = false;
+                    generateBtn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4 mr-2"></i>Generar Siguientes Pasos';
+                    lucide.createIcons();
+                }
+            }
         });
 
         exportCsvBtn.addEventListener('click', () => {
-            if (leadsData.length === 0) {
+            const dataToExport = allLeads;
+            if (dataToExport.length === 0) {
                 alert("No hay datos para exportar.");
                 return;
             }
             
-            let csvContent = "data:text/csv;charset=utf-8,";
-            const headers = ["Fecha", "Nombre", "Email", "Telefono", "Proposito", "Monto Credito", "Estado", "Valor Propiedad", "Enganche", "Ingreso Mensual", "Historial Crediticio", "Saldo Actual", "Tasa Actual", "Banco Actual"];
-            csvContent += headers.join(",") + "\r\n";
+            const headers = ["Fecha", "Nombre", "Email", "Telefono", "Proposito", "Valor Propiedad", "Ingreso Mensual", "Estado"];
+            let csvContent = headers.join(",") + "\r\n";
 
-            leadsData.forEach(lead => {
-                const loanAmount = lead.loanPurpose === 'compra' ? (lead.propertyValue - lead.downPayment) : lead.currentBalance;
+            dataToExport.forEach(lead => {
                 const row = [
                     lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : '',
                     lead.fullName,
                     lead.email,
                     lead.phone,
                     lead.loanPurpose,
-                    loanAmount || '',
-                    lead.estado || 'Recibida',
                     lead.propertyValue || '',
-                    lead.downPayment || '',
                     lead.monthlyIncome || '',
-                    lead.creditScore || '',
-                    lead.currentBalance || '',
-                    lead.currentInterestRate || '',
-                    lead.currentBank || ''
+                    lead.estado || 'Recibida'
                 ];
                 csvContent += row.map(val => `"${val}"`).join(",") + "\r\n";
             });
 
-            const encodedUri = encodeURI(csvContent);
+            const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", "homeloans_mx_leads.csv");
