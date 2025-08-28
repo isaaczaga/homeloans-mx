@@ -4,18 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HomeLoans.mx - Su Guía para Créditos Hipotecarios en México</title>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
         body { font-family: 'Inter', sans-serif; }
         .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #059669; cursor: pointer; border-radius: 50%; }
@@ -48,19 +41,39 @@
                 <a href="quienes-somos.html" class="text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
                 <a href="blog.html" class="text-gray-600 hover:text-emerald-600">Recursos</a>
                 <a href="pre-calificacion.html" class="text-gray-600 hover:text-emerald-600">Contacto</a>
+                
+                <!-- CAMBIO: Iconos de redes sociales añadidos -->
+                <div class="border-l pl-6 flex items-center space-x-4">
+                    <a href="https://x.com/homeloans2025" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-emerald-600" aria-label="Síguenos en X">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                    <a href="https://instagram.com/homeloans02025" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-emerald-600" aria-label="Síguenos en Instagram">
+                        <i data-lucide="instagram" class="w-5 h-5"></i>
+                    </a>
+                </div>
+                
+                <a href="pre-calificacion.html" class="bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">
+                    Pre-calificar Ahora
+                </a>
             </div>
-            <a href="pre-calificacion.html" class="hidden md:inline-block bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">
-                Pre-calificar Ahora
-            </a>
             <button id="mobile-menu-button" class="md:hidden">
                 <i data-lucide="menu"></i>
             </button>
         </nav>
+        <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
             <a href="index.html#calculator" class="block py-2 text-gray-600 hover:text-emerald-600">Calculadora</a>
             <a href="quienes-somos.html" class="block py-2 text-gray-600 hover:text-emerald-600">Quiénes Somos</a>
             <a href="blog.html" class="block py-2 text-gray-600 hover:text-emerald-600">Recursos</a>
             <a href="pre-calificacion.html" class="block py-2 text-gray-600 hover:text-emerald-600">Contacto</a>
+            <div class="flex justify-center space-x-6 pt-4 border-t mt-4">
+                <a href="https://x.com/homeloans2025" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-emerald-600">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                </a>
+                <a href="https://instagram.com/homeloans02025" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-emerald-600">
+                    <i data-lucide="instagram" class="w-6 h-6"></i>
+                </a>
+            </div>
             <a href="pre-calificacion.html" class="mt-4 block w-full text-center bg-emerald-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition duration-300">
                 Pre-calificar Ahora
             </a>
@@ -69,7 +82,6 @@
 
     <!-- Main Content -->
     <main>
-        <!-- Hero Section -->
         <section class="bg-white">
             <div class="container mx-auto px-6 py-20 md:py-32 text-center">
                 <h1 class="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight">
@@ -86,7 +98,6 @@
             </div>
         </section>
 
-        <!-- How It Works Section -->
         <section id="process" class="py-20">
             <div class="container mx-auto px-6">
                 <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Su crédito en 3 simples pasos</h2><p class="mt-4 text-gray-600">Hacemos el proceso rápido y transparente.</p></div>
@@ -98,7 +109,6 @@
             </div>
         </section>
 
-        <!-- Calculadora Comparativa Section -->
         <section id="calculator" class="bg-white py-20">
             <div class="container mx-auto px-6">
                 <div class="text-center mb-12">
@@ -106,7 +116,6 @@
                     <p class="mt-4 text-gray-600">Ajusta el monto y la tasa para ver cómo cambia tu pago a diferentes plazos.</p>
                 </div>
                 <div class="max-w-7xl mx-auto">
-                    <!-- Controles -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
                         <div>
                             <label for="loanAmount" class="font-semibold">Monto del Préstamo (MXN)</label>
@@ -133,31 +142,25 @@
                             <input type="range" id="loanTermSlider" min="5" max="30" step="1" value="20" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb mt-2">
                         </div>
                     </div>
-
-                    <!-- Resultados Comparativos -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <!-- Escenario a 10 Años -->
                         <div id="term-card-10" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
                             <h3 class="text-xl font-bold text-center text-emerald-200 mb-4">A 10 Años</h3>
                             <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-10" class="text-3xl font-extrabold">$0</p></div>
                             <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-10" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-10" class="font-bold text-sm">$0</span></div></div>
                             <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="10"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
                         </div>
-                        <!-- Escenario a 15 Años -->
                         <div id="term-card-15" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
                             <h3 class="text-xl font-bold text-center text-emerald-200 mb-4">A 15 Años</h3>
                             <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-15" class="text-3xl font-extrabold">$0</p></div>
                             <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-15" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-15" class="font-bold text-sm">$0</span></div></div>
                             <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="15"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
                         </div>
-                        <!-- Escenario a 20 Años -->
                         <div id="term-card-20" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
                             <h3 class="text-xl font-bold text-center text-emerald-200 mb-4">A 20 Años</h3>
                             <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-20" class="text-3xl font-extrabold">$0</p></div>
                             <div class="space-y-2 text-sm text-emerald-100"><div class="flex justify-between"><span>Interés Total:</span><span id="total-interest-20" class="font-semibold">$0</span></div><div class="flex justify-between items-baseline border-t border-emerald-500 pt-2 mt-2"><span class="font-bold text-xs">MONTO TOTAL PAGADO:</span><span id="total-payment-20" class="font-bold text-sm">$0</span></div></div>
                             <button class="share-btn mt-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2 px-4 rounded-lg w-full flex items-center justify-center" data-term="20"><i data-lucide="share-2" class="w-4 h-4 mr-2"></i>Compartir</button>
                         </div>
-                        <!-- Escenario Personalizado -->
                         <div id="term-card-custom" class="term-card bg-emerald-600 text-white p-6 rounded-xl shadow-lg border-2 border-transparent flex flex-col">
                             <h3 id="custom-term-title" class="text-xl font-bold text-center text-emerald-200 mb-4">A 20 Años</h3>
                             <div class="text-center mb-4 flex-grow"><p class="text-sm text-emerald-200">Pago Mensual</p><p id="monthly-payment-custom" class="text-3xl font-extrabold">$0</p></div>
@@ -169,7 +172,6 @@
             </div>
         </section>
 
-        <!-- Testimonials Section -->
         <section id="testimonials" class="py-20">
             <div class="container mx-auto px-6">
                 <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-gray-900">Lo que dicen nuestros clientes</h2></div>
@@ -181,7 +183,6 @@
             </div>
         </section>
 
-        <!-- Partner Banks Section -->
         <section class="bg-white py-16">
             <div class="container mx-auto px-6">
                 <h3 class="text-center text-gray-500 text-sm font-bold uppercase tracking-wider mb-8">Trabajamos con los principales bancos de México</h3>
@@ -190,11 +191,11 @@
                     <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=Banorte" alt="[Logo de Banorte]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
                     <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=HSBC" alt="[Logo de HSBC]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
                     <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=Scotiabank" alt="[Logo de Scotiabank]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
+                    <img src="https://placehold.co/120x40/FFFFFF/A0AEC0?text=Banca+Mifel" alt="[Logo de Banca Mifel]" class="h-10 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
                 </div>
             </div>
         </section>
 
-        <!-- Contact / CTA Section -->
         <section id="contact" class="bg-emerald-700 text-white">
             <div class="container mx-auto px-6 py-20 text-center">
                 <h2 class="text-3xl md:text-4xl font-bold">¿Listo para encontrar su crédito ideal?</h2>
@@ -204,14 +205,18 @@
         </section>
     </main>
 
-    <!-- Footer -->
     <footer class="bg-gray-800 text-white">
         <div class="container mx-auto px-6 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div><h4 class="text-xl font-bold text-emerald-400">HomeLoans.mx</h4><p class="mt-4 text-gray-400">Simplificando los créditos hipotecarios en México.</p></div>
                 <div><h5 class="font-semibold tracking-wider uppercase">Navegación</h5><ul class="mt-4 space-y-2"><li><a href="index.html" class="text-gray-400 hover:text-white">Inicio</a></li><li><a href="quienes-somos.html" class="text-gray-400 hover:text-white">Quiénes Somos</a></li><li><a href="blog.html" class="text-gray-400 hover:text-white">Recursos</a></li><li><a href="pre-calificacion.html" class="text-gray-400 hover:text-white">Pre-calificación</a></li></ul></div>
                 <div><h5 class="font-semibold tracking-wider uppercase">Legal</h5><ul class="mt-4 space-y-2"><li><a href="aviso-de-privacidad.html" class="text-gray-400 hover:text-white">Aviso de Privacidad</a></li><li><a href="terminos-y-condiciones.html" class="text-gray-400 hover:text-white">Términos y Condiciones</a></li></ul></div>
-                <div><h5 class="font-semibold tracking-wider uppercase">Contacto</h5><ul class="mt-4 space-y-2 text-gray-400"><li><a href="mailto:i-zaga@creditaria.com" class="hover:text-white">i-zaga@creditaria.com</a></li></ul></div>
+                <div>
+                    <h5 class="font-semibold tracking-wider uppercase">Contacto</h5>
+                    <ul class="mt-4 space-y-2 text-gray-400">
+                        <li><a href="mailto:i-zaga@creditaria.com" class="hover:text-white">i-zaga@creditaria.com</a></li>
+                    </ul>
+                </div>
             </div>
             <div class="mt-10 border-t border-gray-700 pt-8 text-center text-gray-500"><p>&copy; 2025 HomeLoans.mx - Todos los derechos reservados.</p></div>
         </div>
@@ -231,7 +236,6 @@
         const mobileMenu = document.getElementById('mobile-menu');
         mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
         
-        // --- Lógica de la Calculadora Comparativa ---
         const loanAmountInput = document.getElementById('loanAmount');
         const loanAmountSlider = document.getElementById('loanAmountSlider');
         const interestRateInput = document.getElementById('interestRate');
@@ -327,7 +331,6 @@
             handleInputChange();
         });
         
-        // --- Lógica para Compartir en WhatsApp ---
         document.querySelectorAll('.share-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 const termType = e.currentTarget.dataset.term;
@@ -343,7 +346,6 @@
                 const monthlyPayment = document.getElementById(`monthly-payment-${termType}`).textContent;
                 const totalPayment = document.getElementById(`total-payment-${termType}`).textContent;
                 
-                // CAMBIO: Texto del mensaje actualizado
                 const message = `¡Hola! Te comparto este escenario de crédito hipotecario de Home Loans:\n\n*Monto:* $${loanAmount} MXN\n*Plazo:* ${termYears} años\n*Tasa:* ${interestRate}%\n\n*Pago Mensual Aprox:* ${monthlyPayment}\n*Monto Total Pagado:* ${totalPayment}\n\n¡Calcula tu propio escenario y obtén la mejor tasa en https://www.homeloans.mx/index.html!`;
 
                 const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
