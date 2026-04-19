@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4J1ZFHL3N1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-4J1ZFHL3N1');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Comparamos BBVA, Santander, Banorte, HSBC y Banamex: tasas, plazos y condiciones para hipotecas en México 2026. Descubra cuál banco le conviene más según su perfil.">
@@ -106,7 +114,7 @@
                 <p class="text-emerald-200 mb-6">En 24 horas le decimos qué banco le ofrece la mejor tasa para su perfil. Pre-calificación gratuita y sin compromiso.</p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="pre-calificacion.html" class="bg-white text-emerald-700 font-bold px-8 py-3 rounded-lg hover:bg-gray-100 transition duration-300">Iniciar Pre-calificación</a>
-                    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20que%20me%20ayuden%20a%20comparar%20las%20mejores%20opciones%20hipotecarias%20del%20mercado." target="_blank" class="bg-green-500 text-white font-bold px-8 py-3 rounded-lg hover:bg-green-600 transition duration-300">Escribir por WhatsApp</a>
+                    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20que%20me%20ayuden%20a%20comparar%20las%20mejores%20opciones%20hipotecarias%20del%20mercado." target="_blank" onclick="gtag('event', 'whatsapp_click')" class="bg-green-500 text-white font-bold px-8 py-3 rounded-lg hover:bg-green-600 transition duration-300">Escribir por WhatsApp</a>
                 </div>
             </div>
         </article>
@@ -124,7 +132,7 @@
         </div>
     </footer>
 
-    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
+    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" onclick="gtag('event', 'whatsapp_click')" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
 
     <script>
         lucide.createIcons();

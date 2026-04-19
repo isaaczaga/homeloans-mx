@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4J1ZFHL3N1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-4J1ZFHL3N1');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pre-calificación - HomeLoans.mx</title>
@@ -74,7 +82,7 @@
         </div>
     </div>
 
-    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
+    <a href="https://wa.me/525610074116?text=Hola,%20me%20gustaría%20recibir%20más%20información%20sobre%20los%20créditos%20hipotecarios." target="_blank" rel="noopener noreferrer" onclick="gtag('event', 'whatsapp_click')" class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50" aria-label="Contactar por WhatsApp"><i data-lucide="message-circle" class="w-8 h-8"></i></a>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -110,6 +118,7 @@
                 submitBtn.disabled = true;
                 submitBtnText.classList.add('hidden');
                 spinner.classList.remove('hidden');
+                gtag('event', 'form_submit');
                 
                 const formData = new FormData(form);
                 const data = {};

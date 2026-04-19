@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4J1ZFHL3N1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-4J1ZFHL3N1');
+    </script>
 
    <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17886200996">
@@ -247,6 +255,7 @@
        target="_blank" 
        rel="noopener noreferrer"
        class="fixed bottom-6 right-6 bg-green-500 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50"
+       onclick="gtag('event', 'whatsapp_click')"
        aria-label="Contactar por WhatsApp">
         <i data-lucide="message-circle" class="w-8 h-8"></i>
     </a>
@@ -320,6 +329,7 @@
         }
         
         function handleInputChange() {
+            gtag('event', 'calculator_use');
             calculateAllTerms();
         }
 
