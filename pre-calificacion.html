@@ -133,17 +133,14 @@
                         throw new Error(result.message || 'Error en la respuesta del servidor');
                     }
                     
+                    const clientName = data.fullName;
+                    const businessPhone = "525610074116";
+                    const documentList = `\n- *INE o PASAPORTE*\n- *CSF (constancia de situación fiscal actual)*\n- *Comprobante de domicilio residencial (actual)*\n- *Acta de Nacimiento*\n- *Acta de Matrimonio*\n- *Últimos 6 estados de cuenta (completos)*\n- *(Último recibo de nómina, en su caso)*\n- *Última declaración anual*\n- *Buró de crédito especial:* https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
+                    const message = `Estimado ${clientName} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!\n\nA partir de ahora puedes compartir a este chat o al correo i-zaga@creditaria.com la siguiente información en PDF:${documentList}`;
+                    const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
+                    whatsappConfirmBtn.href = whatsappUrl;
+
                     if(result.success && result.docId) {
-                        const clientName = data.fullName;
-                        const businessPhone = "525610074116";
-                        
-                        const documentList = `\n- *INE o PASAPORTE*\n- *CSF (constancia de situación fiscal actual)*\n- *Comprobante de domicilio residencial (actual)*\n- *Acta de Nacimiento*\n- *Acta de Matrimonio*\n- *Últimos 6 estados de cuenta (completos)*\n- *(Último recibo de nómina, en su caso)*\n- *Última declaración anual*\n- *Buró de crédito especial:* https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
-                        const message = `Estimado ${clientName} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!\n\nA partir de ahora puedes compartir a este chat o al correo i-zaga@creditaria.com la siguiente información en PDF:${documentList}`;
-                        
-                        const whatsappUrl = `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
-                        
-                        whatsappConfirmBtn.href = whatsappUrl;
-                        
                         currentStep++;
                         updateFormSteps();
                     } else {
