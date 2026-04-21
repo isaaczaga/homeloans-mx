@@ -29,20 +29,37 @@ const firebaseConfig = {
 
 let db;
 try {
-  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  db = getFirestore(app);
+  const fbApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  db = getFirestore(fbApp);
+  console.log("[WH] Firebase OK — project:", process.env.FIREBASE_PROJECT_ID);
 } catch (e) {
-  console.error("Firebase init error:", e.message);
+  console.error("[WH] Firebase INIT ERROR:", e.message);
 }
 
 // ── Anthropic ───────────────────────────────────────────────
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Twilio ──────────────────────────────────────────────────
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+// ── TwiML helper (compatible con ESM + Twilio v5) ──────────
+function buildTwiML(message) {
+  // Acceso robusto a MessagingResponse en ESM
+  const MR =
+    twilio?.twiml?.MessagingResponse ||
+    twilio?.default?.twiml?.MessagingResponse;
+  if (MR) {
+    const r = new MR();
+    r.message(message);
+    return r.toString();
+  }
+  // Fallback manual si el import de twiml falla
+  const safe = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
+}
+
+function sendTwiML(res, message) {
+  const xml = buildTwiML(message);
+  res.setHeader("Content-Type", "text/xml");
+  return res.status(200).send(xml);
+}
 
 // ── Sistema prompt de Isaac ─────────────────────────────────
 const SYSTEM_PROMPT = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx en CDMX. Te especializas en propiedades de $10M+ MXN en zonas premium: Polanco, Lomas de Chapultepec, Bosques de las Lomas, Lomas de Vistahermosa, Interlomas, Santa Fe y Pedregal.
@@ -64,19 +81,16 @@ Reglas estrictas:
 INSTRUCCIÓN ESPECIAL — cuando hayas recopilado los 5 datos, incluye AL FINAL de tu respuesta, en una línea separada, el siguiente bloque (el usuario nunca lo verá):
 LEAD_DATA:{"propertyValue":NUMERO_SIN_COMAS,"colonia":"TEXTO","downPayment":NUMERO_SIN_COMAS,"monthlyIncome":NUMERO_SIN_COMAS,"creditScore":"TEXTO"}
 
-Solo incluye LEAD_DATA cuando tengas todos los 5 valores confirmados.`;
+Solo incluye LEAD_DATA cuando tengas los 5 valores confirmados.`;
 
-// ── Constantes ──────────────────────────────────────────────
-const MAX_HISTORY = 20; // mensajes máximos en memoria por sesión
+const MAX_HISTORY = 20;
 
 // ── Utilidades ──────────────────────────────────────────────
 
-/** Convierte el número de WhatsApp a un ID de documento válido para Firestore */
 function phoneToDocId(phone) {
   return "wa_" + phone.replace(/\W/g, "_");
 }
 
-/** Parsea el body de la request (JSON o form-encoded) */
 function parseBody(req) {
   const body = req.body;
   if (!body) return {};
@@ -89,17 +103,14 @@ function parseBody(req) {
   }
 }
 
-/** Extrae y elimina el bloque LEAD_DATA del texto de Claude */
 function extractLeadData(text) {
   const marker = "LEAD_DATA:";
   const idx = text.indexOf(marker);
   if (idx === -1) return { cleanText: text.trim(), leadData: null };
-
   const cleanText = text.slice(0, idx).trim();
   try {
     const json = text.slice(idx + marker.length).trim();
-    const leadData = JSON.parse(json);
-    return { cleanText, leadData };
+    return { cleanText, leadData: JSON.parse(json) };
   } catch {
     return { cleanText, leadData: null };
   }
@@ -112,150 +123,109 @@ export default async function handler(req, res) {
     return res.status(405).send("Method Not Allowed");
   }
 
-  // Validar firma de Twilio (recomendado en producción)
-  if (process.env.VALIDATE_TWILIO_SIGNATURE === "true") {
-    const signature = req.headers["x-twilio-signature"] || "";
-    const url = `https://${req.headers.host}/api/whatsapp-webhook`;
-    const body = parseBody(req);
-    const isValid = twilio.validateRequest(
-      process.env.TWILIO_AUTH_TOKEN,
-      signature,
-      url,
-      body
-    );
-    if (!isValid) {
-      console.warn("Twilio signature validation failed");
-      return res.status(403).send("Forbidden");
-    }
-  }
-
   const body = parseBody(req);
   const incomingMessage = (body.Body || "").trim();
-  const fromNumber = body.From || ""; // ej: whatsapp:+521234567890
-  const toNumber = body.To || process.env.TWILIO_WHATSAPP_NUMBER;
+  const fromNumber = body.From || "";
+
+  console.log(`[WH] ▶ De: ${fromNumber} | Msg: "${incomingMessage}"`);
 
   if (!incomingMessage || !fromNumber) {
+    console.error("[WH] Body vacío — From:", fromNumber, "Body:", body.Body);
     return res.status(400).send("Bad Request");
   }
 
-  console.log(`[WhatsApp] Mensaje de ${fromNumber}: "${incomingMessage}"`);
-
   if (!db) {
+    console.error("[WH] Firestore no inicializado — revisa variables FIREBASE_*");
     return sendTwiML(res, "Lo sentimos, hay un problema técnico. Intente más tarde.");
   }
 
+  // ── PASO 1: Leer sesión de Firestore ──
+  let messages = [];
+  let alreadyQualified = false;
   try {
-    // 1. Leer sesión existente desde Firestore
     const sessionRef = doc(db, "whatsapp_sessions", phoneToDocId(fromNumber));
     const sessionSnap = await getDoc(sessionRef);
-    let messages = [];
-    let alreadyQualified = false;
-
     if (sessionSnap.exists()) {
-      const data = sessionSnap.data();
-      messages = data.messages || [];
-      alreadyQualified = data.qualified || false;
+      messages = sessionSnap.data().messages || [];
+      alreadyQualified = sessionSnap.data().qualified || false;
     }
+    console.log(`[WH] PASO 1 OK — historial: ${messages.length} msgs, calificado: ${alreadyQualified}`);
+  } catch (e) {
+    console.error("[WH] PASO 1 FAIL — Firestore read:", e.code, e.message);
+    return sendTwiML(res, "Disculpe, tuvimos un problema al leer su sesión. Intente de nuevo.");
+  }
 
-    // Si ya fue calificado, responder brevemente
-    if (alreadyQualified) {
-      const reply =
-        "Gracias, ya tenemos su información. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
-      await updateSession(sessionRef, messages, incomingMessage, reply, false);
-      return sendTwiML(res, reply);
-    }
+  // Lead ya calificado
+  if (alreadyQualified) {
+    const reply = "Gracias, ya tenemos su información. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
+    console.log("[WH] Lead ya calificado — respuesta directa");
+    return sendTwiML(res, reply);
+  }
 
-    // 2. Agregar mensaje del usuario al historial
-    messages.push({ role: "user", content: incomingMessage });
-
-    // 3. Llamar a Claude
+  // ── PASO 2: Llamar a Claude ──
+  messages.push({ role: "user", content: incomingMessage });
+  let rawReply;
+  try {
     const claudeResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 512,
+      model: "claude-haiku-4-5-20251001", // Haiku: más rápido, menor riesgo de timeout
+      max_tokens: 400,
       system: SYSTEM_PROMPT,
       messages: messages.slice(-MAX_HISTORY),
     });
-
-    const rawReply =
-      claudeResponse.content?.[0]?.text || "Un momento, por favor.";
-
-    // 4. Extraer LEAD_DATA si Claude la incluyó
-    const { cleanText: reply, leadData } = extractLeadData(rawReply);
-
-    // 5. Si hay lead data, guardar en solicitudes (CRM)
-    let isNowQualified = false;
-    if (leadData) {
-      isNowQualified = true;
-      await saveLead(leadData, fromNumber);
-      console.log(`[WhatsApp] Lead calificado guardado para ${fromNumber}`);
-    }
-
-    // 6. Actualizar historial de sesión en Firestore
-    messages.push({ role: "assistant", content: reply });
-    await updateSession(sessionRef, messages, null, null, isNowQualified);
-
-    // 7. Responder al usuario vía TwiML
-    return sendTwiML(res, reply);
-  } catch (error) {
-    console.error("[WhatsApp] Error en handler:", error);
-    return sendTwiML(
-      res,
-      "Disculpe, tuvimos un problema. Por favor intente de nuevo en un momento."
-    );
+    rawReply = claudeResponse.content?.[0]?.text || "Un momento, por favor.";
+    console.log(`[WH] PASO 2 OK — Claude respondió (${rawReply.length} chars)`);
+  } catch (e) {
+    console.error("[WH] PASO 2 FAIL — Claude API:", e.status, e.message);
+    return sendTwiML(res, "Disculpe, el asistente no está disponible en este momento. Intente en unos minutos.");
   }
-}
 
-// ── Helpers ──────────────────────────────────────────────────
+  // ── PASO 3: Procesar respuesta ──
+  const { cleanText: reply, leadData } = extractLeadData(rawReply);
+  let isNowQualified = false;
 
-/** Envía respuesta TwiML a Twilio (Twilio la entrega como mensaje de WhatsApp) */
-function sendTwiML(res, message) {
-  const twiml = new twilio.twiml.MessagingResponse();
-  twiml.message(message);
-  res.setHeader("Content-Type", "text/xml");
-  return res.status(200).send(twiml.toString());
-}
+  if (leadData) {
+    // ── PASO 3a: Guardar lead en solicitudes ──
+    try {
+      const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
+      await addDoc(collection(db, "solicitudes"), {
+        fullName: "Lead WhatsApp",
+        phone,
+        loanPurpose: "compra",
+        propertyValue: Number(leadData.propertyValue) || 0,
+        downPayment: Number(leadData.downPayment) || 0,
+        monthlyIncome: Number(leadData.monthlyIncome) || 0,
+        creditScore: leadData.creditScore || "",
+        colonia: leadData.colonia || "",
+        source: "whatsapp_chatbot",
+        estado: "Recibida",
+        fecha: serverTimestamp(),
+      });
+      isNowQualified = true;
+      console.log(`[WH] PASO 3a OK — Lead guardado en solicitudes para ${fromNumber}`);
+    } catch (e) {
+      console.error("[WH] PASO 3a FAIL — Firestore write solicitudes:", e.code, e.message);
+      // No bloquear — seguir y responder al usuario de todas formas
+    }
+  }
 
-/** Actualiza el documento de sesión en Firestore */
-async function updateSession(
-  sessionRef,
-  messages,
-  userMsg,
-  assistantMsg,
-  qualified
-) {
-  // Si se pasan mensajes nuevos sueltos (para el caso del ya-calificado)
-  const history = [...messages];
-  if (userMsg) history.push({ role: "user", content: userMsg });
-  if (assistantMsg) history.push({ role: "assistant", content: assistantMsg });
-
-  // Mantener solo los últimos MAX_HISTORY mensajes
-  const trimmed = history.slice(-MAX_HISTORY);
-
-  await setDoc(
-    sessionRef,
-    {
+  // ── PASO 4: Actualizar sesión en Firestore ──
+  try {
+    messages.push({ role: "assistant", content: reply });
+    const trimmed = messages.slice(-MAX_HISTORY);
+    const sessionRef = doc(db, "whatsapp_sessions", phoneToDocId(fromNumber));
+    await setDoc(sessionRef, {
       messages: trimmed,
       lastActivity: serverTimestamp(),
-      ...(qualified !== null && { qualified }),
-    },
-    { merge: true }
-  );
-}
+      qualified: isNowQualified,
+      phone: fromNumber,
+    }, { merge: true });
+    console.log(`[WH] PASO 4 OK — Sesión actualizada (${trimmed.length} msgs)`);
+  } catch (e) {
+    console.error("[WH] PASO 4 FAIL — Firestore write sesión:", e.code, e.message);
+    // No bloquear — responder al usuario de todas formas
+  }
 
-/** Guarda el lead calificado en la colección solicitudes (misma que usa el CRM) */
-async function saveLead(leadData, fromNumber) {
-  const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
-  await addDoc(collection(db, "solicitudes"), {
-    fullName: "Lead WhatsApp",
-    phone: phone,
-    loanPurpose: "compra",
-    propertyValue: Number(leadData.propertyValue) || 0,
-    downPayment: Number(leadData.downPayment) || 0,
-    monthlyIncome: Number(leadData.monthlyIncome) || 0,
-    creditScore: leadData.creditScore || "",
-    colonia: leadData.colonia || "",
-    source: "whatsapp_chatbot",
-    estado: "Recibida",
-    fecha: serverTimestamp(),
-  });
+  // ── PASO 5: Responder vía TwiML ──
+  console.log(`[WH] PASO 5 — Enviando TwiML: "${reply.slice(0, 60)}..."`);
+  return sendTwiML(res, reply);
 }
