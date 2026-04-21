@@ -1,15 +1,14 @@
-# Ignorar la carpeta de dependencias de Node.js
+# Dependencias de Node.js
 node_modules
 
-# Ignorar archivos de configuración de sistemas operativos
-.DS_Store
-Thumbs.db
-# Ignorar la carpeta de dependencias de Node.js
-node_modules
-
-# Ignorar archivos de configuración de sistemas operativos
-.DS_Store
-Thumbs.db
-
-# Ignorar variables de entorno locales
+# Variables de entorno — NUNCA subir a GitHub
+.env
 .env.local
+.env.*.local
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel

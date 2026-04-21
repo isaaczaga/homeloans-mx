@@ -4,12 +4,14 @@
   "description": "Sitio web para HomeLoans.mx, un bróker hipotecario en México.",
   "main": "index.html",
   "scripts": {
-    "start": "echo \"No hay un script de inicio definido. Despliega esto en una plataforma como Vercel o Netlify.\""
+    "start": "echo \"Despliega en Vercel. Para desarrollo local del chatbot: ver CHATBOT-README.md\""
   },
   "author": "I. Zaga",
   "license": "UNLICENSED",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
     "firebase": "^10.12.2",
-    "nodemailer": "^6.9.14"
+    "nodemailer": "^6.9.14",
+    "twilio": "^5.4.0"
   }
 }
