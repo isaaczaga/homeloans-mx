@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Página Principal -->
+  <url>
+    <loc>https://www.homeloans.mx/</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Pre-calificación -->
+  <url>
+    <loc>https://www.homeloans.mx/pre-calificacion.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Blog / Recursos -->
+  <url>
+    <loc>https://www.homeloans.mx/blog.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Quiénes Somos -->
+  <url>
+    <loc>https://www.homeloans.mx/quienes-somos.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Artículo: Cómo Obtener un Crédito Hipotecario en México 2026 -->
+  <url>
+    <loc>https://www.homeloans.mx/articulo-como-obtener-credito-hipotecario-mexico-2026.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Artículo: Mejores Colonias de CDMX para Invertir 2026 -->
+  <url>
+    <loc>https://www.homeloans.mx/articulo-mejores-colonias-cdmx-invertir-2026.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Artículo: Cuánto Enganche Necesito para Comprar Casa en México -->
+  <url>
+    <loc>https://www.homeloans.mx/articulo-cuanto-enganche-necesito-casa-mexico.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Artículo: Comparativo de Bancos Hipoteca 2026 -->
+  <url>
+    <loc>https://www.homeloans.mx/articulo-comparativo-bancos-hipoteca-2026.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Artículo: Guía para Extranjeros Comprando Casa en México 2026 -->
+  <url>
+    <loc>https://www.homeloans.mx/articulo-guia-extranjeros-comprar-casa-mexico.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Aviso de Privacidad -->
+  <url>
+    <loc>https://www.homeloans.mx/aviso-de-privacidad.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Términos y Condiciones -->
+  <url>
+    <loc>https://www.homeloans.mx/terminos-y-condiciones.html</loc>
+    <lastmod>2026-04-19</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>
