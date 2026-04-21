@@ -14,513 +14,826 @@
         body { font-family: 'Inter', sans-serif; }
         .modal-overlay { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
-        .spinner { border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; }
+        .spinner { border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .kanban-column { min-width: 252px; flex-shrink: 0; }
+        .kanban-drop-zone { min-height: 120px; transition: background 0.15s; }
+        .kanban-column.drag-over .kanban-drop-zone { background-color: #D1FAE5; outline: 2px dashed #059669; border-radius: 0.5rem; }
+        .kanban-card.dragging { opacity: 0.4; }
+        .kanban-card { cursor: grab; }
+        .kanban-card:active { cursor: grabbing; }
     </style>
 </head>
 <body class="bg-gray-100">
 
-    <!-- Contenedor principal para la lógica de autenticación -->
-    <div id="app-container">
+<div id="app-container">
 
-        <!-- Pantalla de Login (visible por defecto) -->
-        <div id="login-screen" class="flex items-center justify-center min-h-screen">
-            <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8">
-                <div class="flex justify-center items-center space-x-2 mb-6">
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8">
+            <div class="flex justify-center items-center space-x-2 mb-6">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
+            </div>
+            <h2 id="form-title" class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
+            <form id="login-form" class="mt-6 space-y-4">
+                <div>
+                    <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
+                    <input type="email" id="email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                </div>
+                <div class="relative">
+                    <label for="password" class="font-medium text-gray-700">Contraseña</label>
+                    <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 pr-10" required>
+                    <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 top-6 flex items-center px-3 text-gray-500 hover:text-emerald-600">
+                        <i id="eye-icon" data-lucide="eye"></i>
+                        <i id="eye-off-icon" data-lucide="eye-off" class="hidden"></i>
+                    </button>
+                </div>
+                <p id="login-error" class="text-sm text-red-600 hidden"></p>
+                <button type="submit" id="login-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center">
+                    <span id="login-btn-text">Iniciar Sesión</span>
+                    <span id="login-spinner" class="spinner hidden ml-2"></span>
+                </button>
+                <div class="text-center text-sm">
+                    <a href="#" id="forgot-password-link" class="font-medium text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</a>
+                </div>
+            </form>
+            <form id="reset-form" class="hidden mt-6 space-y-4">
+                <div>
+                    <label for="reset-email" class="font-medium text-gray-700">Correo Electrónico</label>
+                    <input type="email" id="reset-email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                </div>
+                <p id="reset-message" class="text-sm text-center hidden"></p>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">Enviar Correo de Recuperación</button>
+                <div class="text-center text-sm">
+                    <a href="#" id="back-to-login-link" class="font-medium text-emerald-600 hover:underline">Volver a Iniciar Sesión</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CRM PANEL -->
+    <div id="crm-panel" class="hidden">
+
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
                     <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
                 </div>
-                <h2 id="form-title" class="text-2xl font-bold text-center text-gray-900">Acceso al Panel</h2>
-                
-                <form id="login-form" class="mt-6 space-y-4">
-                    <div>
-                        <label for="email" class="font-medium text-gray-700">Correo Electrónico</label>
-                        <input type="email" id="email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
-                    </div>
-                    <div class="relative">
-                        <label for="password" class="font-medium text-gray-700">Contraseña</label>
-                        <input type="password" id="password" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 pr-10" required>
-                        <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 top-6 flex items-center px-3 text-gray-500 hover:text-emerald-600">
-                            <i id="eye-icon" data-lucide="eye"></i>
-                            <i id="eye-off-icon" data-lucide="eye-off" class="hidden"></i>
-                        </button>
-                    </div>
-                    <p id="login-error" class="text-sm text-red-600 hidden"></p>
-                    <button type="submit" id="login-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center">
-                        <span id="login-btn-text">Iniciar Sesión</span>
-                        <span id="login-spinner" class="spinner hidden ml-2"></span>
-                    </button>
-                    <div class="text-center text-sm">
-                        <a href="#" id="forgot-password-link" class="font-medium text-emerald-600 hover:underline">¿Olvidaste tu contraseña?</a>
-                    </div>
-                </form>
+                <button id="logout-btn" class="text-sm font-medium text-gray-600 hover:text-emerald-600 flex items-center">
+                    <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>Cerrar Sesión
+                </button>
+            </nav>
+        </header>
 
-                <form id="reset-form" class="hidden mt-6 space-y-4">
-                    <div>
-                        <label for="reset-email" class="font-medium text-gray-700">Correo Electrónico</label>
-                        <input type="email" id="reset-email" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" required>
-                    </div>
-                    <p id="reset-message" class="text-sm text-center hidden"></p>
-                    <button type="submit" id="reset-btn" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">
-                        Enviar Correo de Recuperación
-                    </button>
-                    <div class="text-center text-sm">
-                        <a href="#" id="back-to-login-link" class="font-medium text-emerald-600 hover:underline">Volver a Iniciar Sesión</a>
-                    </div>
-                </form>
-
+        <!-- DASHBOARD STATS -->
+        <div class="bg-white border-b border-gray-200">
+            <div class="container mx-auto px-6 py-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Leads este mes</p>
+                    <p id="stat-total-month" class="text-3xl font-bold text-gray-900 mt-1">—</p>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                    <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Score 7+ (Calificados)</p>
+                    <p id="stat-qualified" class="text-3xl font-bold text-emerald-700 mt-1">—</p>
+                </div>
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <p class="text-xs font-semibold text-blue-600 uppercase tracking-wider">Valor del Pipeline</p>
+                    <p id="stat-pipeline" class="text-2xl font-bold text-blue-700 mt-1">—</p>
+                </div>
+                <div class="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                    <p class="text-xs font-semibold text-purple-600 uppercase tracking-wider">Tasa de Conversión</p>
+                    <p id="stat-conversion" class="text-3xl font-bold text-purple-700 mt-1">—</p>
+                </div>
             </div>
         </div>
 
-        <!-- Panel del CRM (oculto por defecto) -->
-        <div id="crm-panel" class="hidden">
-            <header class="bg-white shadow-sm">
-                <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-                    <div class="flex items-center space-x-2">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
-                        <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span> | CRM</span>
-                    </div>
-                    <button id="logout-btn" class="text-sm font-medium text-gray-600 hover:text-emerald-600 flex items-center">
-                        <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>
-                        Cerrar Sesión
-                    </button>
-                </nav>
-            </header>
+        <main class="py-8">
+            <div class="container mx-auto px-6">
 
-            <main class="py-12">
-                <div class="container mx-auto px-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-                        <h1 class="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">Panel de Solicitudes</h1>
-                        <div class="flex items-center space-x-4">
-                             <!-- CAMBIO: Filtro de estado -->
-                            <div>
-                                <label for="status-filter" class="text-sm font-medium text-gray-700">Filtrar por estado:</label>
-                                <select id="status-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md">
-                                    <option value="Todos">Todos</option>
-                                    <option value="Recibida">Recibida</option>
-                                    <option value="En Seguimiento">En Seguimiento</option>
-                                    <option value="En Proceso">En Proceso</option>
-                                    <option value="Cliente Logrado">Cliente Logrado</option>
-                                    <option value="Archivado">Archivado</option>
-                                </select>
-                            </div>
-                            <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm">
-                                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
-                                Exportar a CSV
+                <!-- Controls bar -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
+                    <h1 class="text-3xl font-bold text-gray-900">Panel de Solicitudes</h1>
+                    <div class="flex items-center flex-wrap gap-3">
+                        <!-- View toggle -->
+                        <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm font-medium">
+                            <button id="table-view-btn" class="px-3 py-2 bg-emerald-600 text-white flex items-center gap-1 transition">
+                                <i data-lucide="list" class="w-4 h-4"></i> Tabla
+                            </button>
+                            <button id="kanban-view-btn" class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 flex items-center gap-1 transition">
+                                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Kanban
                             </button>
                         </div>
+                        <!-- Filter (table only) -->
+                        <div id="filter-container">
+                            <select id="status-filter" class="block pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                <option value="Todos">Todos</option>
+                                <option value="Recibida">Recibida</option>
+                                <option value="En Seguimiento">En Seguimiento</option>
+                                <option value="Propuesta Enviada">Propuesta Enviada</option>
+                                <option value="En Proceso">En Proceso</option>
+                                <option value="Cliente Logrado">Cliente Logrado</option>
+                                <option value="Archivado">Archivado</option>
+                            </select>
+                        </div>
+                        <!-- Export -->
+                        <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm gap-2">
+                            <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                        </button>
                     </div>
+                </div>
 
+                <!-- TABLE VIEW -->
+                <div id="table-view">
                     <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm text-left text-gray-500">
                                 <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                                     <tr>
-                                        <th scope="col" class="px-6 py-3">Fecha</th>
-                                        <th scope="col" class="px-6 py-3">Nombre</th>
-                                        <th scope="col" class="px-6 py-3">Ingreso Mensual</th>
-                                        <th scope="col" class="px-6 py-3">Valor Propiedad</th>
-                                        <th scope="col" class="px-6 py-3">Propósito</th>
-                                        <th scope="col" class="px-6 py-3">Estado</th>
-                                        <th scope="col" class="px-6 py-3"></th>
+                                        <th class="px-5 py-3">Fecha</th>
+                                        <th class="px-5 py-3">Nombre</th>
+                                        <th class="px-5 py-3">Score</th>
+                                        <th class="px-5 py-3">Ingreso</th>
+                                        <th class="px-5 py-3">Propiedad</th>
+                                        <th class="px-5 py-3">Follow-up</th>
+                                        <th class="px-5 py-3">Estado</th>
+                                        <th class="px-5 py-3">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="leads-table-body">
-                                    <tr id="loading-row"><td colspan="7" class="text-center p-8 text-gray-400">Inicia sesión para ver las solicitudes...</td></tr>
+                                    <tr><td colspan="8" class="text-center p-8 text-gray-400">Inicia sesión para ver las solicitudes...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
-    </div>
 
-    <!-- Modal para ver detalles del Lead -->
-    <div id="lead-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden modal-overlay opacity-0">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col modal-content transform scale-95">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h3 class="text-xl font-bold">Detalles de la Solicitud</h3>
-                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button>
-            </div>
-            <div id="modal-body" class="p-6 md:p-8 overflow-y-auto"></div>
-        </div>
-    </div>
-    
-    <script type="module">
-        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        const firebaseConfig = {
-        apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
-        authDomain: "homeloan-app.firebaseapp.com",
-        projectId: "homeloan-app",
-        storageBucket: "homeloan-app.firebasestorage.app",
-        messagingSenderId: "786916227313",
-        appId: "1:786916227313:web:088b16e41f4f94dbac1150",
-        measurementId: "G-0YC8V5LM55"
-        };
-        
-        let app;
-        if (!getApps().length) { app = initializeApp(firebaseConfig); } 
-        else { app = getApps()[0]; }
-
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        lucide.createIcons();
-
-        const loginScreen = document.getElementById('login-screen');
-        const crmPanel = document.getElementById('crm-panel');
-        const loginForm = document.getElementById('login-form');
-        const loginError = document.getElementById('login-error');
-        const loginBtn = document.getElementById('login-btn');
-        const loginBtnText = document.getElementById('login-btn-text');
-        const loginSpinner = document.getElementById('login-spinner');
-        const logoutBtn = document.getElementById('logout-btn');
-        const tableBody = document.getElementById('leads-table-body');
-        const modal = document.getElementById('lead-modal');
-        const modalBody = document.getElementById('modal-body');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        const togglePasswordBtn = document.getElementById('toggle-password');
-        const passwordInput = document.getElementById('password');
-        const eyeIcon = document.getElementById('eye-icon');
-        const eyeOffIcon = document.getElementById('eye-off-icon');
-        const forgotPasswordLink = document.getElementById('forgot-password-link');
-        const backToLoginLink = document.getElementById('back-to-login-link');
-        const resetForm = document.getElementById('reset-form');
-        const formTitle = document.getElementById('form-title');
-        const resetMessage = document.getElementById('reset-message');
-        const exportCsvBtn = document.getElementById('export-csv-btn');
-        const statusFilter = document.getElementById('status-filter');
-        
-        let allLeads = [];
-        let unsubscribeFromFirestore = null;
-        let isInitialLoad = true;
-        let notificationSynth;
-
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                loginScreen.classList.add('hidden');
-                crmPanel.classList.remove('hidden');
-                lucide.createIcons();
-                listenToLeads();
-            } else {
-                loginScreen.classList.remove('hidden');
-                crmPanel.classList.add('hidden');
-                if (unsubscribeFromFirestore) {
-                    unsubscribeFromFirestore();
-                }
-            }
-        });
-
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = passwordInput.value;
-            loginError.classList.add('hidden');
-            loginBtn.disabled = true;
-            loginBtnText.textContent = 'Iniciando sesión...';
-            loginSpinner.classList.remove('hidden');
-            signInWithEmailAndPassword(auth, email, password)
-                .then(() => {
-                    if (Tone.context.state !== 'running') {
-                        Tone.start();
-                    }
-                    // CAMBIO: Sonido "Cristalino" implementado
-                    notificationSynth = new Tone.FMSynth({
-                        harmonicity: 8, modulationIndex: 2, detune: 0,
-                        oscillator: { type: "sine" },
-                        envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 1 },
-                        modulation: { type: "square" },
-                        modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
-                    }).toDestination();
-                })
-                .catch(error => {
-                    console.error("Login error:", error.code);
-                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-                         loginError.textContent = "Correo o contraseña incorrectos.";
-                    } else if (error.code === 'auth/invalid-api-key') {
-                         loginError.textContent = "Error de configuración: La clave de API de Firebase no es válida.";
-                    } else {
-                         loginError.textContent = "Ocurrió un error. Inténtalo de nuevo.";
-                    }
-                    loginError.classList.remove('hidden');
-                })
-                .finally(() => {
-                    loginBtn.disabled = false;
-                    loginBtnText.textContent = 'Iniciar Sesión';
-                    loginSpinner.classList.add('hidden');
-                });
-        });
-
-        logoutBtn.addEventListener('click', () => { signOut(auth); });
-        togglePasswordBtn.addEventListener('click', () => {
-            const isPassword = passwordInput.type === 'password';
-            passwordInput.type = isPassword ? 'text' : 'password';
-            eyeIcon.classList.toggle('hidden', isPassword);
-            eyeOffIcon.classList.toggle('hidden', !isPassword);
-        });
-        forgotPasswordLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginForm.classList.add('hidden');
-            resetForm.classList.remove('hidden');
-            formTitle.textContent = 'Recuperar Contraseña';
-        });
-        backToLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            resetForm.classList.add('hidden');
-            loginForm.classList.remove('hidden');
-            formTitle.textContent = 'Acceso al Panel';
-            resetMessage.classList.add('hidden');
-        });
-        resetForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = document.getElementById('reset-email').value;
-            sendPasswordResetEmail(auth, email)
-                .then(() => {
-                    resetMessage.textContent = '¡Correo enviado! Revisa tu bandeja de entrada.';
-                    resetMessage.classList.remove('hidden', 'text-red-600');
-                    resetMessage.classList.add('text-green-600');
-                })
-                .catch(error => {
-                    console.error("Reset password error:", error);
-                    resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
-                    resetMessage.classList.remove('hidden', 'text-green-600');
-                    resetMessage.classList.add('text-red-600');
-                });
-        });
-
-        function listenToLeads() {
-            const q = query(collection(db, "solicitudes"), orderBy("fecha", "desc"));
-            unsubscribeFromFirestore = onSnapshot(q, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added" && !isInitialLoad) {
-                        if (notificationSynth) {
-                            // CAMBIO: Trigger para el sonido "Cristalino"
-                            notificationSynth.triggerAttackRelease("C6", "4n");
-                        }
-                    }
-                });
-                
-                allLeads = [];
-                snapshot.forEach((doc) => {
-                    allLeads.push({ id: doc.id, ...doc.data() });
-                });
-                renderTable();
-                isInitialLoad = false;
-
-            }, (error) => {
-                console.error("Error listening to Firestore:", error);
-                tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-red-500">
-                    <strong class="font-semibold">Error de Permisos</strong><br>
-                    No se pudo leer la lista de solicitudes. Por favor, ve a tu consola de Firebase, entra a Firestore Database > Reglas y asegúrate de que el permiso de lectura ('read') esté permitido para usuarios autenticados.
-                </td></tr>`;
-            });
-        }
-
-        function renderTable() {
-            const filterValue = statusFilter.value;
-            const filteredLeads = filterValue === 'Todos' ? allLeads : allLeads.filter(lead => (lead.estado || 'Recibida') === filterValue);
-
-            tableBody.innerHTML = '';
-            if (filteredLeads.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-gray-400">No hay solicitudes con este estado.</td></tr>`;
-                return;
-            }
-            filteredLeads.forEach((lead) => {
-                const row = document.createElement('tr');
-                row.className = 'bg-white border-b hover:bg-gray-50';
-                row.innerHTML = `
-                    <td class="px-6 py-4">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
-                    <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
-                    <td class="px-6 py-4">${formatCurrency(lead.monthlyIncome || 0)}</td>
-                    <td class="px-6 py-4">${formatCurrency(lead.propertyValue || 0)}</td>
-                    <td class="px-6 py-4">${lead.loanPurpose || 'N/A'}</td>
-                    <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(lead.estado)}">${lead.estado || 'Recibida'}</span></td>
-                    <td class="px-6 py-4 text-right"><button class="view-details-btn font-medium text-emerald-600 hover:underline" data-id="${lead.id}">Ver Detalles</button></td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        statusFilter.addEventListener('change', renderTable);
-
-        function getStatusClass(status) {
-            switch(status) {
-                case 'Cliente Logrado': return 'bg-green-100 text-green-800';
-                case 'En Seguimiento': return 'bg-blue-100 text-blue-800';
-                case 'En Proceso': return 'bg-purple-100 text-purple-800';
-                case 'Archivado': return 'bg-gray-100 text-gray-800';
-                default: return 'bg-yellow-100 text-yellow-800';
-            }
-        }
-
-        const formatCurrency = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
-
-        function openModal(leadData, leadId) {
-            let detailsHtml = '<div class="space-y-4">';
-            const detailsOrder = {
-                'Información de Contacto': ['fullName', 'email', 'phone'],
-                'Perfil Financiero': ['monthlyIncome', 'creditScore'],
-                'Detalles del Crédito': ['loanPurpose', 'propertyValue', 'downPayment', 'currentBalance', 'currentInterestRate', 'currentBank']
-            };
-            
-            for (const section in detailsOrder) {
-                detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2">${section}</h4><dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">`;
-                detailsOrder[section].forEach(key => {
-                    if (leadData[key]) {
-                        let value = leadData[key];
-                        if (['monthlyIncome', 'propertyValue', 'downPayment', 'currentBalance'].includes(key)) {
-                            value = formatCurrency(value);
-                        }
-                        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                        detailsHtml += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">${label}</dt><dd class="text-gray-900">${value}</dd></div>`;
-                    }
-                });
-                detailsHtml += `</dl>`;
-            }
-
-            if (leadData.documentos) {
-                detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-4">Documentos Subidos</h4><ul>`;
-                for (const docName in leadData.documentos) {
-                    detailsHtml += `<li class="py-1"><a href="${leadData.documentos[docName]}" target="_blank" class="text-emerald-600 hover:underline flex items-center"><i data-lucide="file-check-2" class="w-4 h-4 mr-2"></i>${docName.replace(/([A-Z])/g, ' $1')}</a></li>`;
-                }
-                detailsHtml += `</ul>`;
-            }
-            
-            detailsHtml += `<div id="ai-action-plan-section">
-                <h4 class="text-lg font-semibold border-b pb-2 mt-6">Plan de Acción con IA</h4>
-                <div class="mt-4">
-                    <button id="generate-plan-btn" class="w-full bg-emerald-100 text-emerald-800 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center">
-                        <i data-lucide="sparkles" class="w-4 h-4 mr-2"></i>
-                        Generar Siguientes Pasos
-                    </button>
-                    <div id="ai-plan-output" class="mt-4 p-4 bg-gray-50 rounded-lg text-sm text-gray-700 hidden"></div>
+                <!-- KANBAN VIEW -->
+                <div id="kanban-view" class="hidden">
+                    <div id="kanban-board" class="flex gap-4 pb-4" style="overflow-x:auto; min-width:100%;"></div>
                 </div>
-            </div>`;
 
-            detailsHtml += `<h4 class="text-lg font-semibold border-b pb-2 mt-6">Gestionar Prospecto</h4><div class="flex flex-wrap gap-2 mt-4">
-                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
-                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200" data-status="En Proceso">En Proceso</button>
-                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-800 hover:bg-green-200" data-status="Cliente Logrado">Cliente Logrado</button>
-                <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="Archivado">Archivado</button>
-                <button id="delete-btn" class="ml-auto text-sm font-medium px-3 py-1 rounded-full bg-red-100 text-red-800 hover:bg-red-200 flex items-center"><i data-lucide="trash-2" class="w-4 h-4 mr-1"></i>Eliminar</button>
-            </div>`;
+            </div>
+        </main>
+    </div>
+</div>
 
-            detailsHtml += '</div>';
+<!-- MODAL -->
+<div id="lead-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden modal-overlay opacity-0">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col modal-content transform scale-95">
+        <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+            <h3 class="text-xl font-bold">Detalles de la Solicitud</h3>
+            <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div id="modal-body" class="p-6 overflow-y-auto"></div>
+    </div>
+</div>
 
-            modalBody.innerHTML = detailsHtml;
-            modalBody.dataset.leadId = leadId;
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
+    authDomain: "homeloan-app.firebaseapp.com",
+    projectId: "homeloan-app",
+    storageBucket: "homeloan-app.firebasestorage.app",
+    messagingSenderId: "786916227313",
+    appId: "1:786916227313:web:088b16e41f4f94dbac1150",
+    measurementId: "G-0YC8V5LM55"
+};
+
+let app;
+if (!getApps().length) { app = initializeApp(firebaseConfig); } else { app = getApps()[0]; }
+const auth = getAuth(app);
+const db = getFirestore(app);
+lucide.createIcons();
+
+// --- DOM refs ---
+const loginScreen = document.getElementById('login-screen');
+const crmPanel = document.getElementById('crm-panel');
+const loginForm = document.getElementById('login-form');
+const loginError = document.getElementById('login-error');
+const loginBtn = document.getElementById('login-btn');
+const loginBtnText = document.getElementById('login-btn-text');
+const loginSpinner = document.getElementById('login-spinner');
+const logoutBtn = document.getElementById('logout-btn');
+const tableBody = document.getElementById('leads-table-body');
+const modal = document.getElementById('lead-modal');
+const modalBody = document.getElementById('modal-body');
+const closeModalBtn = document.getElementById('close-modal-btn');
+const togglePasswordBtn = document.getElementById('toggle-password');
+const passwordInput = document.getElementById('password');
+const eyeIcon = document.getElementById('eye-icon');
+const eyeOffIcon = document.getElementById('eye-off-icon');
+const forgotPasswordLink = document.getElementById('forgot-password-link');
+const backToLoginLink = document.getElementById('back-to-login-link');
+const resetForm = document.getElementById('reset-form');
+const formTitle = document.getElementById('form-title');
+const resetMessage = document.getElementById('reset-message');
+const exportCsvBtn = document.getElementById('export-csv-btn');
+const statusFilter = document.getElementById('status-filter');
+const tableViewBtn = document.getElementById('table-view-btn');
+const kanbanViewBtn = document.getElementById('kanban-view-btn');
+const tableView = document.getElementById('table-view');
+const kanbanView = document.getElementById('kanban-view');
+const kanbanBoard = document.getElementById('kanban-board');
+const filterContainer = document.getElementById('filter-container');
+
+let allLeads = [];
+let unsubscribeFromFirestore = null;
+let isInitialLoad = true;
+let notificationSynth;
+let currentView = 'table';
+let draggedLeadId = null;
+
+const KANBAN_COLUMNS = [
+    { id: 'Recibida',         label: 'Pre-calificación Recibida', headerCls: 'bg-yellow-100 text-yellow-800',  colCls: 'bg-yellow-50' },
+    { id: 'En Seguimiento',   label: 'En Seguimiento',            headerCls: 'bg-blue-100 text-blue-800',     colCls: 'bg-blue-50' },
+    { id: 'Propuesta Enviada',label: 'Propuesta Enviada',          headerCls: 'bg-indigo-100 text-indigo-800', colCls: 'bg-indigo-50' },
+    { id: 'En Proceso',       label: 'En Proceso',                headerCls: 'bg-purple-100 text-purple-800', colCls: 'bg-purple-50' },
+    { id: 'Cliente Logrado',  label: 'Cliente Logrado',           headerCls: 'bg-green-100 text-green-800',   colCls: 'bg-green-50' },
+    { id: 'Archivado',        label: 'Archivado',                 headerCls: 'bg-gray-200 text-gray-700',     colCls: 'bg-gray-50' },
+];
+
+// ==================== AUTH ====================
+
+onAuthStateChanged(auth, user => {
+    if (user) {
+        loginScreen.classList.add('hidden');
+        crmPanel.classList.remove('hidden');
+        lucide.createIcons();
+        listenToLeads();
+    } else {
+        loginScreen.classList.remove('hidden');
+        crmPanel.classList.add('hidden');
+        if (unsubscribeFromFirestore) unsubscribeFromFirestore();
+    }
+});
+
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = passwordInput.value;
+    loginError.classList.add('hidden');
+    loginBtn.disabled = true;
+    loginBtnText.textContent = 'Iniciando sesión...';
+    loginSpinner.classList.remove('hidden');
+    signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+            if (Tone.context.state !== 'running') Tone.start();
+            notificationSynth = new Tone.FMSynth({
+                harmonicity: 8, modulationIndex: 2, detune: 0,
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.001, decay: 0.5, sustain: 0.1, release: 1 },
+                modulation: { type: "square" },
+                modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
+            }).toDestination();
+        })
+        .catch(error => {
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                loginError.textContent = "Correo o contraseña incorrectos.";
+            } else if (error.code === 'auth/invalid-api-key') {
+                loginError.textContent = "Error de configuración: La clave de API de Firebase no es válida.";
+            } else {
+                loginError.textContent = "Ocurrió un error. Inténtalo de nuevo.";
+            }
+            loginError.classList.remove('hidden');
+        })
+        .finally(() => {
+            loginBtn.disabled = false;
+            loginBtnText.textContent = 'Iniciar Sesión';
+            loginSpinner.classList.add('hidden');
+        });
+});
+
+logoutBtn.addEventListener('click', () => signOut(auth));
+
+togglePasswordBtn.addEventListener('click', () => {
+    const isPass = passwordInput.type === 'password';
+    passwordInput.type = isPass ? 'text' : 'password';
+    eyeIcon.classList.toggle('hidden', isPass);
+    eyeOffIcon.classList.toggle('hidden', !isPass);
+});
+
+forgotPasswordLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginForm.classList.add('hidden');
+    resetForm.classList.remove('hidden');
+    formTitle.textContent = 'Recuperar Contraseña';
+});
+
+backToLoginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    resetForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+    formTitle.textContent = 'Acceso al Panel';
+    resetMessage.classList.add('hidden');
+});
+
+resetForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('reset-email').value;
+    sendPasswordResetEmail(auth, email)
+        .then(() => {
+            resetMessage.textContent = '¡Correo enviado! Revisa tu bandeja de entrada.';
+            resetMessage.classList.remove('hidden', 'text-red-600');
+            resetMessage.classList.add('text-green-600');
+        })
+        .catch(() => {
+            resetMessage.textContent = 'No se pudo enviar el correo. Verifica la dirección.';
+            resetMessage.classList.remove('hidden', 'text-green-600');
+            resetMessage.classList.add('text-red-600');
+        });
+});
+
+// ==================== VIEW TOGGLE ====================
+
+tableViewBtn.addEventListener('click', () => {
+    currentView = 'table';
+    tableView.classList.remove('hidden');
+    kanbanView.classList.add('hidden');
+    filterContainer.classList.remove('hidden');
+    tableViewBtn.classList.add('bg-emerald-600', 'text-white');
+    tableViewBtn.classList.remove('bg-white', 'text-gray-600');
+    kanbanViewBtn.classList.add('bg-white', 'text-gray-600');
+    kanbanViewBtn.classList.remove('bg-emerald-600', 'text-white');
+});
+
+kanbanViewBtn.addEventListener('click', () => {
+    currentView = 'kanban';
+    tableView.classList.add('hidden');
+    kanbanView.classList.remove('hidden');
+    filterContainer.classList.add('hidden');
+    kanbanViewBtn.classList.add('bg-emerald-600', 'text-white');
+    kanbanViewBtn.classList.remove('bg-white', 'text-gray-600');
+    tableViewBtn.classList.add('bg-white', 'text-gray-600');
+    tableViewBtn.classList.remove('bg-emerald-600', 'text-white');
+    renderKanban();
+});
+
+// ==================== FIRESTORE ====================
+
+function listenToLeads() {
+    const q = query(collection(db, "solicitudes"), orderBy("fecha", "desc"));
+    unsubscribeFromFirestore = onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added" && !isInitialLoad) {
+                if (notificationSynth) notificationSynth.triggerAttackRelease("C6", "4n");
+            }
+        });
+        allLeads = [];
+        snapshot.forEach((d) => allLeads.push({ id: d.id, ...d.data() }));
+        renderTable();
+        updateStats();
+        if (currentView === 'kanban') renderKanban();
+        isInitialLoad = false;
+    }, (error) => {
+        console.error("Firestore error:", error);
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-red-500"><strong>Error de Permisos</strong><br>Verifica las reglas de Firestore.</td></tr>`;
+    });
+}
+
+// ==================== HELPERS ====================
+
+function calculateScore(lead) {
+    let score = 2;
+    if ((lead.propertyValue || 0) >= 10000000) score += 3;
+    if ((lead.monthlyIncome || 0) >= 100000) score += 3;
+    if (lead.creditScore === 'Excelente') score += 2;
+    else if (lead.creditScore === 'Bueno') score += 1;
+    return Math.min(10, score);
+}
+
+function scoreBadge(score) {
+    const cls = score >= 8 ? 'bg-emerald-100 text-emerald-800' : score >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800';
+    return `<span class="px-2 py-0.5 text-xs font-bold rounded-full ${cls}">${score}/10</span>`;
+}
+
+function followUpBadge(lead) {
+    if (!lead.proximoContacto) return '';
+    const today = new Date(); today.setHours(0,0,0,0);
+    const fu = new Date(lead.proximoContacto + 'T00:00:00');
+    if (fu < today) return `<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">Vencido</span>`;
+    if (fu.getTime() === today.getTime()) return `<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800">Hoy</span>`;
+    const [y,m,d] = lead.proximoContacto.split('-');
+    return `<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">${d}/${m}/${y}</span>`;
+}
+
+function waUrl(lead) {
+    const msg = `Hola ${lead.fullName}, le contacto de HomeLoans.mx para darle seguimiento a su solicitud de crédito hipotecario. ¿Tiene un momento para conversar sobre las opciones disponibles para usted?`;
+    const phone = lead.phone ? String(lead.phone).replace(/\D/g,'') : '';
+    return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+}
+
+function getStatusClass(status) {
+    const map = {
+        'Cliente Logrado': 'bg-green-100 text-green-800',
+        'En Seguimiento': 'bg-blue-100 text-blue-800',
+        'Propuesta Enviada': 'bg-indigo-100 text-indigo-800',
+        'En Proceso': 'bg-purple-100 text-purple-800',
+        'Archivado': 'bg-gray-100 text-gray-800',
+    };
+    return map[status] || 'bg-yellow-100 text-yellow-800';
+}
+
+const formatCurrency = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+
+function formatCurrencyCompact(n) {
+    if (n >= 1000000000) return '$' + (n/1000000000).toFixed(1) + 'B';
+    if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + (n/1000).toFixed(0) + 'K';
+    return '$' + n;
+}
+
+// ==================== STATS ====================
+
+function updateStats() {
+    const now = new Date();
+    const thisMonth = allLeads.filter(l => {
+        if (!l.fecha) return false;
+        const d = l.fecha.toDate();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const qualified = allLeads.filter(l => calculateScore(l) >= 7);
+    const pipeline = allLeads.reduce((s, l) => s + (l.propertyValue || 0), 0);
+    const converted = allLeads.filter(l => l.estado === 'Cliente Logrado').length;
+    const rate = allLeads.length > 0 ? ((converted / allLeads.length) * 100).toFixed(1) : 0;
+
+    document.getElementById('stat-total-month').textContent = thisMonth.length;
+    document.getElementById('stat-qualified').textContent = qualified.length;
+    document.getElementById('stat-pipeline').textContent = formatCurrencyCompact(pipeline);
+    document.getElementById('stat-conversion').textContent = rate + '%';
+}
+
+// ==================== TABLE ====================
+
+function renderTable() {
+    const filter = statusFilter.value;
+    const leads = filter === 'Todos' ? allLeads : allLeads.filter(l => (l.estado || 'Recibida') === filter);
+    tableBody.innerHTML = '';
+    if (leads.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-gray-400">No hay solicitudes con este estado.</td></tr>`;
+        return;
+    }
+    leads.forEach(lead => {
+        const score = calculateScore(lead);
+        const row = document.createElement('tr');
+        row.className = 'bg-white border-b hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="px-5 py-4 whitespace-nowrap">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
+            <td class="px-5 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
+            <td class="px-5 py-4">${scoreBadge(score)}</td>
+            <td class="px-5 py-4">${formatCurrency(lead.monthlyIncome || 0)}</td>
+            <td class="px-5 py-4">${formatCurrency(lead.propertyValue || 0)}</td>
+            <td class="px-5 py-4">${followUpBadge(lead)}</td>
+            <td class="px-5 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(lead.estado)}">${lead.estado || 'Recibida'}</span></td>
+            <td class="px-5 py-4">
+                <div class="flex items-center gap-2">
+                    <button class="view-details-btn font-medium text-emerald-600 hover:underline text-sm" data-id="${lead.id}">Ver</button>
+                    <a href="${waUrl(lead)}" target="_blank" class="bg-green-500 text-white text-xs px-2 py-1 rounded-lg hover:bg-green-600 flex items-center gap-1 whitespace-nowrap">
+                        <i data-lucide="message-circle" class="w-3 h-3"></i> WA
+                    </a>
+                </div>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+    lucide.createIcons();
+}
+
+statusFilter.addEventListener('change', renderTable);
+
+tableBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.view-details-btn');
+    if (btn) {
+        const lead = allLeads.find(l => l.id === btn.dataset.id);
+        if (lead) openModal(lead, lead.id);
+    }
+});
+
+// ==================== KANBAN ====================
+
+function renderKanban() {
+    kanbanBoard.innerHTML = '';
+    KANBAN_COLUMNS.forEach(col => {
+        const colLeads = allLeads.filter(l => (l.estado || 'Recibida') === col.id);
+        const colEl = document.createElement('div');
+        colEl.className = `kanban-column rounded-xl border border-gray-200 ${col.colCls}`;
+        colEl.dataset.status = col.id;
+        colEl.innerHTML = `
+            <div class="px-3 py-2 rounded-t-xl ${col.headerCls} flex items-center justify-between">
+                <span class="font-semibold text-sm">${col.label}</span>
+                <span class="text-xs font-bold bg-white bg-opacity-60 px-2 py-0.5 rounded-full">${colLeads.length}</span>
+            </div>
+            <div class="kanban-drop-zone p-2 space-y-2 rounded-b-xl" data-status="${col.id}">
+                ${colLeads.map(lead => kanbanCard(lead)).join('')}
+            </div>
+        `;
+        kanbanBoard.appendChild(colEl);
+
+        const dropZone = colEl.querySelector('.kanban-drop-zone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); colEl.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            colEl.classList.remove('drag-over');
+            if (!draggedLeadId) return;
+            try { await updateDoc(doc(db, "solicitudes", draggedLeadId), { estado: col.id }); }
+            catch (err) { console.error("Drag drop update error:", err); }
+            draggedLeadId = null;
+        });
+    });
+
+    kanbanBoard.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+            draggedLeadId = card.dataset.id;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    });
+
+    kanbanBoard.addEventListener('click', (e) => {
+        const btn = e.target.closest('.kanban-view-btn');
+        if (btn) {
+            const lead = allLeads.find(l => l.id === btn.dataset.id);
+            if (lead) openModal(lead, lead.id);
+        }
+    });
+
+    lucide.createIcons();
+}
+
+function kanbanCard(lead) {
+    const score = calculateScore(lead);
+    const fuBadge = followUpBadge(lead);
+    return `
+        <div class="kanban-card bg-white rounded-lg shadow-sm p-3 border border-gray-100" draggable="true" data-id="${lead.id}">
+            <div class="flex items-start justify-between gap-1 mb-1">
+                <span class="font-semibold text-sm text-gray-900 leading-tight">${lead.fullName}</span>
+                ${scoreBadge(score)}
+            </div>
+            <p class="text-xs text-gray-500 mb-0.5">${lead.loanPurpose || ''}</p>
+            <p class="text-xs font-medium text-gray-700">${formatCurrency(lead.propertyValue || 0)}</p>
+            ${fuBadge ? `<div class="mt-1.5">${fuBadge}</div>` : ''}
+            <div class="flex items-center gap-2 mt-2.5 pt-2 border-t border-gray-100">
+                <button class="kanban-view-btn text-xs text-emerald-600 hover:underline font-medium" data-id="${lead.id}">Ver detalles</button>
+                <a href="${waUrl(lead)}" target="_blank" class="ml-auto bg-green-500 text-white text-xs px-2 py-1 rounded-lg hover:bg-green-600 flex items-center gap-1">
+                    <i data-lucide="message-circle" class="w-3 h-3"></i> WA
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== MODAL ====================
+
+function openModal(leadData, leadId) {
+    const score = calculateScore(leadData);
+    const notes = leadData.notas || [];
+
+    const detailsOrder = {
+        'Información de Contacto': ['fullName', 'email', 'phone'],
+        'Perfil Financiero': ['monthlyIncome', 'creditScore'],
+        'Detalles del Crédito': ['loanPurpose', 'propertyValue', 'downPayment', 'currentBalance', 'currentInterestRate', 'currentBank']
+    };
+
+    let html = '<div class="space-y-4">';
+
+    // Data sections
+    for (const section in detailsOrder) {
+        html += `<h4 class="text-lg font-semibold border-b pb-2">${section}</h4><dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">`;
+        detailsOrder[section].forEach(key => {
+            if (leadData[key]) {
+                let val = leadData[key];
+                if (['monthlyIncome','propertyValue','downPayment','currentBalance'].includes(key)) val = formatCurrency(val);
+                const label = key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
+                html += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">${label}</dt><dd class="text-gray-900">${val}</dd></div>`;
+            }
+        });
+        html += '</dl>';
+    }
+
+    // Documents
+    if (leadData.documentos) {
+        html += `<h4 class="text-lg font-semibold border-b pb-2 mt-2">Documentos Subidos</h4><ul>`;
+        for (const docName in leadData.documentos) {
+            html += `<li class="py-1"><a href="${leadData.documentos[docName]}" target="_blank" class="text-emerald-600 hover:underline flex items-center gap-1"><i data-lucide="file-check-2" class="w-4 h-4"></i>${docName.replace(/([A-Z])/g,' $1')}</a></li>`;
+        }
+        html += '</ul>';
+    }
+
+    // Score
+    const barColor = score >= 8 ? 'bg-emerald-500' : score >= 5 ? 'bg-amber-500' : 'bg-red-500';
+    html += `
+        <h4 class="text-lg font-semibold border-b pb-2 mt-2">Score del Lead</h4>
+        <div class="flex items-center gap-3 mt-2">
+            ${scoreBadge(score)}
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                <div class="h-2 rounded-full ${barColor}" style="width:${score*10}%"></div>
+            </div>
+            <span class="text-sm text-gray-500">${score}/10</span>
+        </div>
+    `;
+
+    // Follow-up
+    html += `
+        <h4 class="text-lg font-semibold border-b pb-2 mt-2">Próximo Contacto (Follow-up)</h4>
+        <div class="flex items-center gap-3 mt-2">
+            <input type="date" id="followup-date-input" value="${leadData.proximoContacto || ''}"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+            <button id="save-followup-btn" class="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 transition">Guardar</button>
+        </div>
+    `;
+
+    // Notes
+    html += `
+        <h4 class="text-lg font-semibold border-b pb-2 mt-2">Notas</h4>
+        <div id="notes-history" class="space-y-2 max-h-44 overflow-y-auto mb-3">
+            ${notes.length === 0
+                ? '<p class="text-sm text-gray-400 italic">Sin notas aún.</p>'
+                : notes.slice().reverse().map(n => `
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p class="text-sm text-gray-800">${n.texto}</p>
+                        <p class="text-xs text-gray-400 mt-1">${n.fecha && n.fecha.toDate ? n.fecha.toDate().toLocaleString('es-MX') : ''}</p>
+                    </div>`).join('')
+            }
+        </div>
+        <div class="flex gap-2">
+            <textarea id="new-note-input" placeholder="Escribe una nota..." rows="2"
+                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+            <button id="save-note-btn" class="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 transition self-end">Agregar</button>
+        </div>
+    `;
+
+    // AI plan
+    html += `
+        <h4 class="text-lg font-semibold border-b pb-2 mt-2">Plan de Acción con IA</h4>
+        <div class="mt-3">
+            <button id="generate-plan-btn" class="w-full bg-emerald-100 text-emerald-800 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Generar Siguientes Pasos
+            </button>
+            <div id="ai-plan-output" class="mt-3 p-4 bg-gray-50 rounded-lg text-sm text-gray-700 hidden"></div>
+        </div>
+    `;
+
+    // Status buttons
+    html += `
+        <h4 class="text-lg font-semibold border-b pb-2 mt-2">Gestionar Prospecto</h4>
+        <div class="flex flex-wrap gap-2 mt-3">
+            <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
+            <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 hover:bg-indigo-200" data-status="Propuesta Enviada">Propuesta Enviada</button>
+            <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-purple-100 text-purple-800 hover:bg-purple-200" data-status="En Proceso">En Proceso</button>
+            <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-800 hover:bg-green-200" data-status="Cliente Logrado">Cliente Logrado</button>
+            <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200" data-status="Archivado">Archivado</button>
+            <button id="delete-btn" class="ml-auto text-sm font-medium px-3 py-1 rounded-full bg-red-100 text-red-800 hover:bg-red-200 flex items-center gap-1">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Eliminar
+            </button>
+        </div>
+    `;
+
+    html += '</div>';
+    modalBody.innerHTML = html;
+    modalBody.dataset.leadId = leadId;
+    lucide.createIcons();
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.modal-content').classList.remove('scale-95');
+    }, 10);
+}
+
+function closeModal() {
+    modal.classList.add('opacity-0');
+    modal.querySelector('.modal-content').classList.add('scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+closeModalBtn.addEventListener('click', closeModal);
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+// Modal interactions (delegated)
+modalBody.addEventListener('click', async (e) => {
+    const leadId = modalBody.dataset.leadId;
+    if (!leadId) return;
+
+    // Status change
+    const statusBtn = e.target.closest('.status-btn');
+    if (statusBtn) {
+        try {
+            await updateDoc(doc(db, "solicitudes", leadId), { estado: statusBtn.dataset.status });
+            closeModal();
+        } catch { alert("No se pudo actualizar el estado."); }
+        return;
+    }
+
+    // Delete
+    if (e.target.closest('#delete-btn')) {
+        if (confirm("¿Eliminar este prospecto? Esta acción no se puede deshacer.")) {
+            try {
+                await deleteDoc(doc(db, "solicitudes", leadId));
+                closeModal();
+            } catch { alert("No se pudo eliminar el prospecto."); }
+        }
+        return;
+    }
+
+    // Save note
+    if (e.target.closest('#save-note-btn')) {
+        const input = document.getElementById('new-note-input');
+        const texto = input.value.trim();
+        if (!texto) return;
+        const newNote = { texto, fecha: Timestamp.now() };
+        try {
+            await updateDoc(doc(db, "solicitudes", leadId), { notas: arrayUnion(newNote) });
+            input.value = '';
+            // Optimistic UI update
+            const lead = allLeads.find(l => l.id === leadId);
+            if (lead) {
+                if (!lead.notas) lead.notas = [];
+                lead.notas.push(newNote);
+                const hist = document.getElementById('notes-history');
+                if (hist) {
+                    hist.innerHTML = lead.notas.slice().reverse().map(n => `
+                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                            <p class="text-sm text-gray-800">${n.texto}</p>
+                            <p class="text-xs text-gray-400 mt-1">${n.fecha && n.fecha.toDate ? n.fecha.toDate().toLocaleString('es-MX') : 'Ahora'}</p>
+                        </div>`).join('');
+                }
+            }
+        } catch { alert("No se pudo guardar la nota."); }
+        return;
+    }
+
+    // Save follow-up
+    if (e.target.closest('#save-followup-btn')) {
+        const dateVal = document.getElementById('followup-date-input').value;
+        try {
+            await updateDoc(doc(db, "solicitudes", leadId), { proximoContacto: dateVal });
+            const lead = allLeads.find(l => l.id === leadId);
+            if (lead) lead.proximoContacto = dateVal;
+            renderTable();
+            const btn = document.getElementById('save-followup-btn');
+            if (btn) { btn.textContent = '✓ Guardado'; setTimeout(() => { if(btn) btn.textContent = 'Guardar'; }, 2000); }
+        } catch { alert("No se pudo guardar la fecha."); }
+        return;
+    }
+
+    // AI Plan
+    if (e.target.closest('#generate-plan-btn')) {
+        const genBtn = document.getElementById('generate-plan-btn');
+        const outputDiv = document.getElementById('ai-plan-output');
+        genBtn.disabled = true;
+        genBtn.innerHTML = '<span class="spinner"></span><span class="ml-2">Generando...</span>';
+        outputDiv.classList.remove('hidden');
+        outputDiv.textContent = 'Contactando al asistente de IA...';
+        const lead = allLeads.find(l => l.id === leadId);
+        try {
+            await new Promise(r => setTimeout(r, 2000));
+            outputDiv.innerHTML = `
+                <p><strong>Saludo inicial:</strong> "Hola ${lead.fullName}, le contacto de HomeLoans.mx para dar seguimiento a su solicitud de crédito para ${lead.loanPurpose}."</p>
+                <p class="mt-2"><strong>Puntos clave:</strong><br>
+                  • Confirmar valor de propiedad: ${formatCurrency(lead.propertyValue || 0)}<br>
+                  • Opciones según ingreso de ${formatCurrency(lead.monthlyIncome || 0)}<br>
+                  • Historial crediticio: ${lead.creditScore || 'No especificado'}</p>
+                <p class="mt-2"><strong>Próximos pasos:</strong> Solicitar INE, CSF y comprobante de domicilio para iniciar expediente.</p>
+            `;
+        } catch {
+            outputDiv.textContent = 'No se pudo generar el plan.';
+        } finally {
+            genBtn.disabled = false;
+            genBtn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4 mr-2"></i>Generar Siguientes Pasos';
             lucide.createIcons();
-            modal.classList.remove('hidden');
-            setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
         }
+    }
+});
 
-        function closeModal() {
-            modal.classList.add('opacity-0');
-            modal.querySelector('.modal-content').classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); }, 300);
-        }
+// ==================== EXPORT CSV ====================
 
-        tableBody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('view-details-btn')) {
-                const docId = e.target.dataset.id;
-                const lead = allLeads.find(l => l.id === docId);
-                if(lead) {
-                    openModal(lead, docId);
-                }
-            }
-        });
-
-        modalBody.addEventListener('click', async (e) => {
-            const leadId = modalBody.dataset.leadId;
-            if (!leadId) return;
-
-            if (e.target.closest('.status-btn')) {
-                const newStatus = e.target.closest('.status-btn').dataset.status;
-                const leadRef = doc(db, "solicitudes", leadId);
-                try {
-                    await updateDoc(leadRef, { estado: newStatus });
-                    closeModal();
-                } catch (error) {
-                    console.error("Error updating status:", error);
-                    alert("No se pudo actualizar el estado.");
-                }
-            }
-            
-            if (e.target.closest('#delete-btn')) {
-                if (confirm("¿Estás seguro de que quieres eliminar este prospecto? Esta acción no se puede deshacer.")) {
-                    const leadRef = doc(db, "solicitudes", leadId);
-                    try {
-                        await deleteDoc(leadRef);
-                        closeModal();
-                    } catch (error) {
-                        console.error("Error deleting document:", error);
-                        alert("No se pudo eliminar el prospecto.");
-                    }
-                }
-            }
-            
-            if (e.target.closest('#generate-plan-btn')) {
-                const generateBtn = e.target.closest('#generate-plan-btn');
-                const outputDiv = document.getElementById('ai-plan-output');
-                generateBtn.disabled = true;
-                generateBtn.innerHTML = '<span class="spinner"></span><span class="ml-2">Generando...</span>';
-                outputDiv.classList.remove('hidden');
-                outputDiv.innerHTML = 'Contactando al asistente de IA...';
-
-                const lead = allLeads.find(l => l.id === leadId);
-                try {
-                    // --- SIMULACIÓN DE API ---
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    const samplePlan = `<h4>Plan de Seguimiento para ${lead.fullName}</h4><p><strong>Saludo Inicial:</strong> "Hola ${lead.fullName}, te contacto de HomeLoans.mx para dar seguimiento a tu solicitud de crédito para ${lead.loanPurpose}."</p><p><strong>Puntos a Discutir:</strong><br>- Confirmar el valor de la propiedad de ${formatCurrency(lead.propertyValue)}.<br>- Explorar opciones de financiamiento basadas en su ingreso de ${formatCurrency(lead.monthlyIncome)}.</p><p><strong>Siguientes Pasos:</strong> Solicitar los documentos iniciales (INE, CSF, Comprobante de Domicilio).</p>`;
-                    outputDiv.innerHTML = samplePlan;
-                } catch (error) {
-                    outputDiv.innerHTML = 'No se pudo generar el plan en este momento.';
-                } finally {
-                    generateBtn.disabled = false;
-                    generateBtn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4 mr-2"></i>Generar Siguientes Pasos';
-                    lucide.createIcons();
-                }
-            }
-        });
-
-        exportCsvBtn.addEventListener('click', () => {
-            const dataToExport = allLeads;
-            if (dataToExport.length === 0) {
-                alert("No hay datos para exportar.");
-                return;
-            }
-            
-            const headers = ["Fecha", "Nombre", "Email", "Telefono", "Proposito", "Valor Propiedad", "Ingreso Mensual", "Estado"];
-            let csvContent = headers.join(",") + "\r\n";
-
-            dataToExport.forEach(lead => {
-                const row = [
-                    lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : '',
-                    lead.fullName,
-                    lead.email,
-                    lead.phone,
-                    lead.loanPurpose,
-                    lead.propertyValue || '',
-                    lead.monthlyIncome || '',
-                    lead.estado || 'Recibida'
-                ];
-                csvContent += row.map(val => `"${val}"`).join(",") + "\r\n";
-            });
-
-            const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "homeloans_mx_leads.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-
-        closeModalBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-    </script>
+exportCsvBtn.addEventListener('click', () => {
+    if (allLeads.length === 0) { alert("No hay datos para exportar."); return; }
+    const headers = ["Fecha","Nombre","Email","Telefono","Proposito","Valor Propiedad","Ingreso Mensual","Score","Proximo Contacto","Estado"];
+    let csv = headers.join(",") + "\r\n";
+    allLeads.forEach(lead => {
+        const row = [
+            lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : '',
+            lead.fullName, lead.email || '', lead.phone || '',
+            lead.loanPurpose || '', lead.propertyValue || '', lead.monthlyIncome || '',
+            calculateScore(lead), lead.proximoContacto || '', lead.estado || 'Recibida'
+        ];
+        csv += row.map(v => `"${v}"`).join(",") + "\r\n";
+    });
+    const link = document.createElement("a");
+    link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
+    link.download = "homeloans_mx_leads.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+</script>
 </body>
 </html>
