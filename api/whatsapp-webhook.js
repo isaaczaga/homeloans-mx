@@ -284,21 +284,35 @@ export default async function handler(req, res) {
 
   const botPaused = agentPausedUntil && agentPausedUntil > new Date();
 
-  // ── PASO 1b: Primer mensaje — crear lead inicial ──
+  // ── PASO 1b: Primer mensaje — crear lead inicial o enlazar ──
   const isFirstMessage = messages.length === 0 && !crmDocId;
   if (isFirstMessage) {
     try {
-      const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
-      const docRef = await db.collection("solicitudes").add({
-        fullName: "Lead WhatsApp",
-        phone,
-        primerMensaje: incomingMessage || "(adjunto archivo)",
-        source: "whatsapp_chatbot",
-        estado: "Recibida",
-        fecha: FieldValue.serverTimestamp(),
-      });
-      crmDocId = docRef.id;
-      console.log(`[WH] PASO 1b OK — Lead inicial creado: ${crmDocId}`);
+      const digits = fromNumber.replace(/\D/g, "");
+      const tenDigitPhone = digits.length >= 10 ? digits.slice(-10) : digits;
+      
+      const leadsRef = db.collection("solicitudes");
+      let existingLeadSnap = await leadsRef.where("phone", "==", digits).limit(1).get();
+      if (existingLeadSnap.empty && tenDigitPhone !== digits) {
+        existingLeadSnap = await leadsRef.where("phone", "==", tenDigitPhone).limit(1).get();
+      }
+
+      if (!existingLeadSnap.empty) {
+        crmDocId = existingLeadSnap.docs[0].id;
+        console.log(`[WH] PASO 1b OK — Lead existente encontrado: ${crmDocId}`);
+      } else {
+        const phone = digits;
+        const docRef = await db.collection("solicitudes").add({
+          fullName: "Lead WhatsApp",
+          phone,
+          primerMensaje: incomingMessage || "(adjunto archivo)",
+          source: "whatsapp_chatbot",
+          estado: "Recibida",
+          fecha: FieldValue.serverTimestamp(),
+        });
+        crmDocId = docRef.id;
+        console.log(`[WH] PASO 1b OK — Lead inicial creado: ${crmDocId}`);
+      }
     } catch (e) {
       console.error("[WH] PASO 1b FAIL:", e.code, e.message);
     }
@@ -337,16 +351,19 @@ export default async function handler(req, res) {
 
     if (mediaDocs.length > 0 && crmDocId) {
       try {
-        await db
-          .collection("solicitudes")
-          .doc(crmDocId)
-          .set(
-            {
-              documentos: FieldValue.arrayUnion(...mediaDocs),
-              lastDocumentAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
+        const leadSnapForUpdate = await db.collection("solicitudes").doc(crmDocId).get();
+        const leadData = leadSnapForUpdate.data() || {};
+        
+        const updatePayload = {
+          documentos: FieldValue.arrayUnion(...mediaDocs),
+          lastDocumentAt: FieldValue.serverTimestamp(),
+        };
+
+        if (leadData.estado === "Recibida" || !leadData.estado) {
+            updatePayload.estado = "En Seguimiento";
+        }
+
+        await db.collection("solicitudes").doc(crmDocId).set(updatePayload, { merge: true });
       } catch (e) {
         console.error("[WH] PASO 2 persist FAIL:", e.code, e.message);
       }
@@ -455,15 +472,20 @@ export default async function handler(req, res) {
         creditScore: leadData.creditScore || "",
         colonia: leadData.colonia || "",
         source: "whatsapp_chatbot",
-        estado: "Recibida",
         calificadoEn: FieldValue.serverTimestamp(),
       };
 
       if (crmDocId) {
+        // Obtenemos el estado actual para no sobreescribirlo si ya avanzó
+        const leadSnapForUpdate = await db.collection("solicitudes").doc(crmDocId).get();
+        const currentData = leadSnapForUpdate.data() || {};
+        if (!currentData.estado) fullLeadData.estado = "Recibida";
+        
         await db.collection("solicitudes").doc(crmDocId).set(fullLeadData, { merge: true });
       } else {
         const docRef = await db.collection("solicitudes").add({
           ...fullLeadData,
+          estado: "Recibida",
           fecha: FieldValue.serverTimestamp(),
         });
         crmDocId = docRef.id;

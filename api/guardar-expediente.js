@@ -189,6 +189,11 @@ export default async function handler(req, res) {
     completado: tieneLaboral && tieneUbicacion, // mínimo viable
   };
 
+  const currentLeadData = leadSnap.data() || {};
+  if (expediente.expedienteProgreso.completado && (currentLeadData.estado === "Recibida" || !currentLeadData.estado)) {
+    expediente.estado = "En Seguimiento";
+  }
+
   try {
     await leadRef.set(expediente, { merge: true });
     console.log(`[EXP] Expediente guardado: ${leadId} — laboral:${tieneLaboral} ubicacion:${tieneUbicacion} refs:${referencias.length} medico:${tieneMedico}`);
