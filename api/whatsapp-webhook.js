@@ -381,10 +381,31 @@ export default async function handler(req, res) {
     return sendTwiML(res, "");
   }
 
-  // Lead ya calificado y sin media nueva: respuesta estática
+  // Lead ya calificado y sin media nueva: respuesta estática + link de expediente si falta.
   if (alreadyQualified && mediaDocs.length === 0) {
-    const reply =
-      "Gracias, ya tenemos su información. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
+    // Revisar si el expediente ya está completo
+    let expedienteDone = false;
+    if (crmDocId) {
+      try {
+        const leadSnap = await db.collection("solicitudes").doc(crmDocId).get();
+        const data = leadSnap.data() || {};
+        expedienteDone = !!data.expedienteProgreso?.completado;
+      } catch (e) {
+        console.error("[WH] no se pudo leer expedienteProgreso:", e.message);
+      }
+    }
+
+    let reply;
+    if (!expedienteDone && crmDocId) {
+      const base = (process.env.PUBLIC_SITE_URL || "https://homeloans.mx").replace(/\/$/, "");
+      const link = `${base}/completar-expediente.html?leadId=${crmDocId}`;
+      reply =
+        `Gracias, ya tenemos su pre-calificación. Para avanzar con el banco falta completar su expediente (empresa, ubicación, referencias y pre-cotización de seguro de vida) — tarda ~3 minutos:\n\n${link}\n\n` +
+        `Si tiene alguna duda, escríbala aquí y un asesor le responderá a la brevedad.`;
+    } else {
+      reply =
+        "Gracias, su expediente está completo. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
+    }
     return sendTwiML(res, reply);
   }
 

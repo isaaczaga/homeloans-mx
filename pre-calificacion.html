@@ -86,11 +86,24 @@
                 <div id="step-4" class="form-step hidden text-center">
                     <div class="bg-emerald-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle-2" class="text-emerald-600 w-16 h-16"></i></div>
                     <h2 id="confirmation-title" class="text-2xl font-bold text-gray-900">¡Solicitud Exitosa!</h2>
-                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">¡Gracias por tu confianza! Hemos guardado tu información. El siguiente paso es confirmar por WhatsApp para solicitarte los documentos.</p>
-                    <div class="mt-8">
-                        <a href="#" id="whatsapp-confirm-btn" target="_blank" class="bg-green-500 text-white font-semibold px-8 py-3 rounded-lg hover:bg-green-600 transition duration-300 inline-flex items-center">
-                            <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>
-                            Confirmar y Pedir Lista de Documentos
+                    <p id="confirmation-message" class="mt-4 text-gray-600 max-w-md mx-auto">¡Gracias por tu confianza! Hemos guardado tu pre-calificación. El siguiente paso es completar tu expediente (~3 min) para que el banco pueda procesar tu solicitud.</p>
+
+                    <div id="expediente-cta-wrapper" class="mt-8 bg-emerald-50 border border-emerald-200 rounded-xl p-6 max-w-md mx-auto text-left">
+                        <h3 class="font-semibold text-emerald-900 flex items-center"><i data-lucide="folder-check" class="w-5 h-5 mr-2"></i>Completa tu expediente ahora</h3>
+                        <ul class="mt-3 text-sm text-emerald-900 space-y-1">
+                            <li class="flex items-start"><i data-lucide="check" class="w-4 h-4 mr-2 mt-0.5 text-emerald-600 flex-shrink-0"></i>Empresa y ubicación</li>
+                            <li class="flex items-start"><i data-lucide="check" class="w-4 h-4 mr-2 mt-0.5 text-emerald-600 flex-shrink-0"></i>2 referencias (opcionales)</li>
+                            <li class="flex items-start"><i data-lucide="check" class="w-4 h-4 mr-2 mt-0.5 text-emerald-600 flex-shrink-0"></i>Pre-cotización gratuita de seguro de vida</li>
+                        </ul>
+                        <a href="#" id="expediente-link-btn" class="mt-4 block w-full bg-emerald-600 text-white text-center font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 transition">
+                            Completar expediente →
+                        </a>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="#" id="whatsapp-confirm-btn" target="_blank" class="text-sm text-gray-600 hover:text-emerald-700 underline inline-flex items-center">
+                            <i data-lucide="message-circle" class="w-4 h-4 mr-1"></i>
+                            O continuar por WhatsApp
                         </a>
                     </div>
                 </div>
@@ -168,6 +181,11 @@
                     whatsappConfirmBtn.href = whatsappUrl;
 
                     if(result.success && result.docId) {
+                        // Wire the expediente CTA with the real leadId
+                        const expedienteBtn = document.getElementById('expediente-link-btn');
+                        if (expedienteBtn) {
+                            expedienteBtn.href = `/completar-expediente.html?leadId=${encodeURIComponent(result.docId)}`;
+                        }
                         currentStep++;
                         updateFormSteps();
                     } else {
