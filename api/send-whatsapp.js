@@ -10,8 +10,8 @@ import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
-// ── Firebase Admin SDK (singleton) ──────────────────────────
-let db, adminAuth;
+// ── Firebase Admin SDK (singleton, mismo patrón que el webhook) ──
+let db;
 try {
   const app = getApps().length
     ? getApps()[0]
@@ -23,9 +23,9 @@ try {
         }),
       });
   db = getFirestore(app);
-  adminAuth = getAuth(app);
+  console.log("[SEND] Firebase Admin OK — project:", process.env.FIREBASE_ADMIN_PROJECT_ID);
 } catch (e) {
-  console.error("[SEND] Firebase Admin INIT ERROR:", e.message);
+  console.error("[SEND] Firebase Admin INIT ERROR:", e.message, e.stack);
 }
 
 // ── Twilio client ───────────────────────────────────────────
@@ -48,7 +48,6 @@ function normalizeWhatsAppNumber(phone) {
 
 // ── Handler ─────────────────────────────────────────────────
 export default async function handler(req, res) {
-  // CORS mínimo: mismo origen, pero por si llega desde homeloans.mx con fetch
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -56,8 +55,27 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-  if (!db || !adminAuth) {
-    return res.status(500).json({ error: "Firebase Admin no inicializado" });
+  // Diagnóstico temprano: qué env vars faltan
+  const missing = [];
+  if (!process.env.FIREBASE_ADMIN_PROJECT_ID) missing.push("FIREBASE_ADMIN_PROJECT_ID");
+  if (!process.env.FIREBASE_ADMIN_CLIENT_EMAIL) missing.push("FIREBASE_ADMIN_CLIENT_EMAIL");
+  if (!process.env.FIREBASE_ADMIN_PRIVATE_KEY) missing.push("FIREBASE_ADMIN_PRIVATE_KEY");
+  if (!process.env.TWILIO_ACCOUNT_SID) missing.push("TWILIO_ACCOUNT_SID");
+  if (!process.env.TWILIO_AUTH_TOKEN) missing.push("TWILIO_AUTH_TOKEN");
+  if (!process.env.TWILIO_WHATSAPP_NUMBER) missing.push("TWILIO_WHATSAPP_NUMBER");
+
+  if (missing.length) {
+    console.error("[SEND] ENV vars faltantes:", missing.join(", "));
+    return res.status(500).json({
+      error: `Faltan variables de entorno en Vercel: ${missing.join(", ")}`,
+    });
+  }
+
+  if (!db) {
+    console.error("[SEND] Firestore no disponible — revisa logs de INIT");
+    return res.status(500).json({
+      error: "Firestore no inicializado. Revisa los logs de Vercel (buscar '[SEND] Firebase Admin INIT ERROR').",
+    });
   }
 
   // ── 1) Verificar ID token del agente ──
@@ -69,12 +87,16 @@ export default async function handler(req, res) {
 
   let agentEmail, agentUid;
   try {
+    // Obtenemos adminAuth lazy — si firebase-admin/auth falla, lo aislamos aquí.
+    const adminAuth = getAuth();
     const decoded = await adminAuth.verifyIdToken(match[1]);
     agentUid = decoded.uid;
     agentEmail = decoded.email || "unknown";
   } catch (e) {
-    console.error("[SEND] Token inválido:", e.message);
-    return res.status(401).json({ error: "Token inválido o expirado" });
+    console.error("[SEND] Auth FAIL:", e.code, e.message);
+    return res.status(401).json({
+      error: `Token inválido o problema de Auth: ${e.message}`,
+    });
   }
 
   // ── 2) Validar body ──
