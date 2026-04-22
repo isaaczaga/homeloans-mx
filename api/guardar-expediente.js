@@ -205,21 +205,34 @@ export default async function handler(req, res) {
     expediente.estado = "En Seguimiento";
   }
 
+  // Guard de idempotencia: si YA estaba completado antes de este POST,
+  // no re-enviamos el WhatsApp (evita duplicados por refresh/doble-submit).
+  const yaEstabaCompletado = !!currentLeadData.expedienteProgreso?.completado;
+
   try {
     await leadRef.set(expediente, { merge: true });
     console.log(`[EXP] Expediente guardado: ${leadId} — laboral:${tieneLaboral} ubicacion:${tieneUbicacion} refs:${referencias.length} medico:${tieneMedico}`);
-    
-    // Si acaba de completarse, enviar WhatsApp automático pidiendo PDFs
-    if (expediente.expedienteProgreso.completado) {
-      try {
-        const phone = currentLeadData.phone || data.phone;
-        if (phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-          const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-          const toNumber = normalizeWhatsAppNumber(phone);
-          const fromNumber = normalizeWhatsAppNumber(process.env.TWILIO_WHATSAPP_NUMBER);
-          const name = (currentLeadData.fullName || "Estimado cliente").split(" ")[0];
-          
-          const msg = `Hola ${name} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!
+
+    // Si ACABA de completarse (primera vez), enviar WhatsApp automático pidiendo PDFs.
+    // Estrategia:
+    //   1) Intentamos freeform (body) — funciona si el cliente nos escribió en las últimas 24h.
+    //   2) Si Twilio responde 63016 (fuera de ventana) y hay TWILIO_CONTENT_SID_EXPEDIENTE
+    //      configurado, reintentamos con el template HSM aprobado por Meta.
+    //   3) Si no hay template configurado, dejamos warning para seguimiento manual.
+    if (expediente.expedienteProgreso.completado && !yaEstabaCompletado) {
+      const phone = currentLeadData.phone || data.phone;
+      const hasTwilioConfig =
+        process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        process.env.TWILIO_WHATSAPP_NUMBER;
+
+      if (phone && hasTwilioConfig) {
+        const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        const toNumber = normalizeWhatsAppNumber(phone);
+        const fromNumber = normalizeWhatsAppNumber(process.env.TWILIO_WHATSAPP_NUMBER);
+        const name = (currentLeadData.fullName || "Estimado cliente").split(" ")[0];
+
+        const freeformBody = `Hola ${name} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!
 
 Para avanzar con tu crédito hipotecario, por favor envíanos por este medio los siguientes documentos. *SOLO EN FORMATO PDF (NO FOTOS)*:
 - INE o PASAPORTE
@@ -232,16 +245,46 @@ Para avanzar con tu crédito hipotecario, por favor envíanos por este medio los
 - Última declaración anual
 - Buró de crédito especial: https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
 
+        try {
           await twilioClient.messages.create({
             from: fromNumber,
             to: toNumber,
-            body: msg
+            body: freeformBody,
           });
-          console.log(`[EXP] WhatsApp automático pidiendo PDFs enviado a ${toNumber}`);
+          console.log(`[EXP] WhatsApp freeform enviado a ${toNumber}`);
+        } catch (err) {
+          const is63016 = err && (err.code === 63016 || String(err.message).includes("63016"));
+
+          if (is63016 && process.env.TWILIO_CONTENT_SID_EXPEDIENTE) {
+            // Fallback a template aprobado. El template debe esperar {{1}} = nombre.
+            try {
+              await twilioClient.messages.create({
+                from: fromNumber,
+                to: toNumber,
+                contentSid: process.env.TWILIO_CONTENT_SID_EXPEDIENTE,
+                contentVariables: JSON.stringify({ "1": name }),
+              });
+              console.log(`[EXP] WhatsApp template (${process.env.TWILIO_CONTENT_SID_EXPEDIENTE}) enviado a ${toNumber} tras 63016`);
+            } catch (tplErr) {
+              console.error(
+                `[EXP] Falló también el template ${process.env.TWILIO_CONTENT_SID_EXPEDIENTE}:`,
+                tplErr.code,
+                tplErr.message
+              );
+            }
+          } else if (is63016) {
+            console.warn(
+              `[EXP] Twilio 63016 — fuera de ventana de 24h y sin TWILIO_CONTENT_SID_EXPEDIENTE configurado. Lead ${leadId} requiere seguimiento manual.`
+            );
+          } else {
+            console.error("[EXP] Error enviando WhatsApp:", err.code, err.message);
+          }
         }
-      } catch(err) {
-        console.error("[EXP] Error enviando WhatsApp automático:", err.message);
+      } else if (!hasTwilioConfig) {
+        console.warn("[EXP] WhatsApp automático NO enviado: faltan TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_NUMBER en Vercel.");
       }
+    } else if (expediente.expedienteProgreso.completado && yaEstabaCompletado) {
+      console.log(`[EXP] Re-submit detectado en lead ${leadId} — omitimos WhatsApp automático (ya se envió la primera vez).`);
     }
 
     return res.status(200).json({
