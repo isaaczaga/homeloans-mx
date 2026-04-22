@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// Reglas de Firebase Storage para homeloan-app.
+//
+// El webhook (Admin SDK) sube los documentos recibidos por WhatsApp
+// a `leads/{leadId}/...`. Los agentes autenticados en el CRM necesitan
+// poder leerlos (preview + descarga). Ninguna escritura desde cliente.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Documentos de leads ─────────────────────────────────────
+    match /leads/{leadId}/{fileName=**} {
+      allow read:  if request.auth != null;
+      allow write: if false;  // solo Admin SDK (webhook)
+    }
+
+    // ── Denegar todo lo demás ───────────────────────────────────
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

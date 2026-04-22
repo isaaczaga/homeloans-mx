@@ -194,7 +194,7 @@
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, doc, getDoc, updateDoc, deleteDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
@@ -592,6 +592,126 @@ function kanbanCard(lead) {
 
 // ==================== MODAL ====================
 
+// Chat: variables de estado
+let unsubscribeFromChat = null;
+let currentChatLeadPhone = null;
+
+// Deriva el ID del documento de whatsapp_sessions desde el teléfono del lead.
+// El webhook usa `phoneToDocId("whatsapp:+<phone>")` → "wa_whatsapp__<phone>"
+function sessionIdFromPhone(phone) {
+    if (!phone) return null;
+    const digits = String(phone).replace(/\D/g, "");
+    if (!digits) return null;
+    return "wa_whatsapp__" + digits;
+}
+
+function renderChatMessages(messages) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-4">Sin mensajes aún.</p>';
+        return;
+    }
+    const bubbles = messages.map(m => {
+        const isUser = m.role === 'user';
+        const isAgent = m.role === 'agent';
+        const isBot = m.role === 'assistant';
+        const bubbleClass = isUser
+            ? 'bg-gray-100 text-gray-900 self-start'
+            : isAgent
+                ? 'bg-emerald-600 text-white self-end'
+                : 'bg-blue-100 text-blue-900 self-end';
+        const label = isUser ? 'Cliente' : isAgent ? `Tú${m.agentEmail ? ' · ' + m.agentEmail : ''}` : 'Isaac (bot)';
+        const time = m.at ? new Date(m.at).toLocaleString('es-MX', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '';
+        const content = String(m.content || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]);
+        return `
+            <div class="flex flex-col ${isUser ? 'items-start' : 'items-end'} mb-1.5">
+                <div class="text-[10px] text-gray-400 mb-0.5 px-1">${label}${time ? ' · ' + time : ''}</div>
+                <div class="${bubbleClass} rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap break-words">${content}</div>
+            </div>`;
+    }).join('');
+    container.innerHTML = bubbles;
+    container.scrollTop = container.scrollHeight;
+}
+
+function subscribeToChat(phone) {
+    const sid = sessionIdFromPhone(phone);
+    if (!sid) return;
+    currentChatLeadPhone = phone;
+    if (unsubscribeFromChat) { try { unsubscribeFromChat(); } catch {} }
+    const ref = doc(db, "whatsapp_sessions", sid);
+    unsubscribeFromChat = onSnapshot(ref, (snap) => {
+        if (!snap.exists()) {
+            const c = document.getElementById('chat-messages');
+            if (c) c.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-4">Sin conversación iniciada.</p>';
+            return;
+        }
+        const data = snap.data();
+        renderChatMessages(data.messages || []);
+        // Indicador de pausa del bot
+        const pausedEl = document.getElementById('chat-paused-indicator');
+        if (pausedEl) {
+            const until = data.agentPausedUntil?.toDate ? data.agentPausedUntil.toDate() : (data.agentPausedUntil ? new Date(data.agentPausedUntil) : null);
+            if (until && until > new Date()) {
+                pausedEl.classList.remove('hidden');
+                pausedEl.textContent = `Bot pausado hasta ${until.toLocaleString('es-MX')}`;
+            } else {
+                pausedEl.classList.add('hidden');
+            }
+        }
+    }, (err) => {
+        console.error("chat snapshot error:", err);
+        const c = document.getElementById('chat-messages');
+        if (c) c.innerHTML = '<p class="text-sm text-red-500 italic text-center py-4">No se pudo cargar la conversación.</p>';
+    });
+}
+
+function renderDocumentsSection(documentos) {
+    // Retrocompatible: si es objeto viejo {nombre: url}, lo convierte a array.
+    const docs = Array.isArray(documentos)
+        ? documentos
+        : (documentos && typeof documentos === 'object'
+            ? Object.entries(documentos).map(([k,v]) => ({ filename: k, url: v, classification: 'otro', summary: '' }))
+            : []);
+    if (docs.length === 0) return '';
+
+    const labelMap = {
+        INE:'INE', comprobante_ingresos:'Comprobante ingresos', estado_cuenta:'Estado de cuenta',
+        comprobante_domicilio:'Comprobante domicilio', escritura:'Escritura',
+        identificacion_otra:'Identificación', rfc:'RFC', otro:'Documento'
+    };
+    const chipColor = {
+        INE:'bg-blue-100 text-blue-800', comprobante_ingresos:'bg-emerald-100 text-emerald-800',
+        estado_cuenta:'bg-purple-100 text-purple-800', comprobante_domicilio:'bg-amber-100 text-amber-800',
+        escritura:'bg-indigo-100 text-indigo-800', identificacion_otra:'bg-blue-100 text-blue-800',
+        rfc:'bg-teal-100 text-teal-800', otro:'bg-gray-100 text-gray-800'
+    };
+    const items = docs.map((d, i) => {
+        const isImg = (d.mimeType || '').startsWith('image/');
+        const label = labelMap[d.classification] || 'Documento';
+        const chip = chipColor[d.classification] || 'bg-gray-100 text-gray-800';
+        const preview = isImg
+            ? `<img src="${d.url}" alt="${label}" class="w-16 h-16 object-cover rounded-md border border-gray-200 flex-shrink-0">`
+            : `<div class="w-16 h-16 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center flex-shrink-0"><i data-lucide="file-text" class="w-7 h-7 text-gray-500"></i></div>`;
+        const when = d.uploadedAt ? new Date(d.uploadedAt).toLocaleString('es-MX', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+        return `
+            <li class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
+                ${preview}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${chip}">${label}</span>
+                        ${when ? `<span class="text-[11px] text-gray-400">${when}</span>` : ''}
+                    </div>
+                    ${d.summary ? `<p class="text-xs text-gray-600 mb-1">${d.summary}</p>` : ''}
+                    <a href="${d.url}" target="_blank" class="text-xs text-emerald-600 hover:underline inline-flex items-center gap-1">
+                        <i data-lucide="external-link" class="w-3 h-3"></i> Abrir ${d.filename || 'archivo'}
+                    </a>
+                </div>
+            </li>`;
+    }).join('');
+    return `<h4 class="text-lg font-semibold border-b pb-2 mt-2">Documentos (${docs.length})</h4><ul class="space-y-1 mt-2">${items}</ul>`;
+}
+
 function openModal(leadData, leadId) {
     const score = calculateScore(leadData);
     const notes = leadData.notas || [];
@@ -618,13 +738,45 @@ function openModal(leadData, leadId) {
         html += '</dl>';
     }
 
-    // Documents
-    if (leadData.documentos) {
-        html += `<h4 class="text-lg font-semibold border-b pb-2 mt-2">Documentos Subidos</h4><ul>`;
-        for (const docName in leadData.documentos) {
-            html += `<li class="py-1"><a href="${leadData.documentos[docName]}" target="_blank" class="text-emerald-600 hover:underline flex items-center gap-1"><i data-lucide="file-check-2" class="w-4 h-4"></i>${docName.replace(/([A-Z])/g,' $1')}</a></li>`;
-        }
-        html += '</ul>';
+    // Documents (array nuevo, retrocompatible con objeto viejo)
+    html += renderDocumentsSection(leadData.documentos);
+
+    // WhatsApp chat
+    if (leadData.phone) {
+        html += `
+            <h4 class="text-lg font-semibold border-b pb-2 mt-2 flex items-center gap-2">
+                <i data-lucide="message-circle" class="w-5 h-5 text-green-600"></i> Conversación WhatsApp
+            </h4>
+            <div id="chat-paused-indicator" class="hidden mb-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2"></div>
+            <div id="chat-messages" class="flex flex-col max-h-72 overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
+                <p class="text-sm text-gray-400 italic text-center py-4">Cargando...</p>
+            </div>
+            <div class="flex gap-2 items-end">
+                <textarea id="chat-input" rows="2" placeholder="Escribe un mensaje (esto pausa el bot 24h)..."
+                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+                <button id="chat-send-btn" class="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-1">
+                    <i data-lucide="send" class="w-4 h-4"></i> Enviar
+                </button>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-2">
+                <button class="chat-template text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
+                    data-tpl="Hola, soy asesor de HomeLoans.mx. Para avanzar con su crédito, ¿podría enviarme una foto de su INE por ambos lados?">
+                    📄 Pedir INE
+                </button>
+                <button class="chat-template text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
+                    data-tpl="Para continuar necesitamos sus últimos 3 recibos de nómina o carta patronal. ¿Puede enviárnoslos por aquí?">
+                    💵 Pedir comprobante ingresos
+                </button>
+                <button class="chat-template text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
+                    data-tpl="¿Le viene bien que agendemos una llamada de 15 minutos para revisar sus opciones? Tengo disponibilidad hoy y mañana.">
+                    📞 Agendar llamada
+                </button>
+                <button class="chat-template text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
+                    data-tpl="Tenemos su pre-calificación lista. Le comparto las mejores 2 opciones: ¿prefiere mayor monto o mejor tasa?">
+                    ✨ Pre-calificación lista
+                </button>
+            </div>
+        `;
     }
 
     // Score
@@ -699,27 +851,81 @@ function openModal(leadData, leadId) {
     html += '</div>';
     modalBody.innerHTML = html;
     modalBody.dataset.leadId = leadId;
+    modalBody.dataset.leadPhone = leadData.phone || '';
     lucide.createIcons();
     modal.classList.remove('hidden');
     setTimeout(() => {
         modal.classList.remove('opacity-0');
         modal.querySelector('.modal-content').classList.remove('scale-95');
     }, 10);
+    // Suscribirse al chat en vivo
+    if (leadData.phone) subscribeToChat(leadData.phone);
 }
 
 function closeModal() {
     modal.classList.add('opacity-0');
     modal.querySelector('.modal-content').classList.add('scale-95');
     setTimeout(() => modal.classList.add('hidden'), 300);
+    if (unsubscribeFromChat) { try { unsubscribeFromChat(); } catch {} unsubscribeFromChat = null; }
+    currentChatLeadPhone = null;
 }
 
 closeModalBtn.addEventListener('click', closeModal);
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
+// Envío de mensaje WhatsApp desde el CRM
+async function sendWhatsAppFromCRM(phone, message, leadId) {
+    if (!auth.currentUser) throw new Error("No autenticado");
+    const idToken = await auth.currentUser.getIdToken();
+    const resp = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ leadId, phone, message }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Error ${resp.status}`);
+    return data;
+}
+
 // Modal interactions (delegated)
 modalBody.addEventListener('click', async (e) => {
     const leadId = modalBody.dataset.leadId;
     if (!leadId) return;
+
+    // Chat: plantilla rápida
+    const tplBtn = e.target.closest('.chat-template');
+    if (tplBtn) {
+        const input = document.getElementById('chat-input');
+        if (input) { input.value = tplBtn.dataset.tpl || ''; input.focus(); }
+        return;
+    }
+
+    // Chat: enviar mensaje
+    if (e.target.closest('#chat-send-btn')) {
+        const sendBtn = document.getElementById('chat-send-btn');
+        const input = document.getElementById('chat-input');
+        const phone = modalBody.dataset.leadPhone;
+        const msg = (input?.value || '').trim();
+        if (!phone) { alert("Este lead no tiene teléfono registrado."); return; }
+        if (!msg) { alert("Escriba un mensaje."); return; }
+        sendBtn.disabled = true;
+        const originalHtml = sendBtn.innerHTML;
+        sendBtn.innerHTML = '<span class="spinner"></span><span class="ml-1">Enviando...</span>';
+        try {
+            await sendWhatsAppFromCRM(phone, msg, leadId);
+            if (input) input.value = '';
+        } catch (err) {
+            alert("No se pudo enviar: " + (err.message || err));
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalHtml;
+            lucide.createIcons();
+        }
+        return;
+    }
 
     // Status change
     const statusBtn = e.target.closest('.status-btn');

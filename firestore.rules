@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore para homeloan-app.
+//
+// Arquitectura:
+// - El webhook (servidor) usa Firebase Admin SDK y bypasea estas reglas.
+// - El CRM (navegador) usa el Client SDK y está sujeto a estas reglas.
+// - Solo usuarios autenticados vía Firebase Auth acceden al CRM.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── solicitudes: leads del CRM ──────────────────────────────
+    match /solicitudes/{docId} {
+      allow read:            if request.auth != null;
+      allow update, delete:  if request.auth != null;
+      allow create:          if false;  // solo Admin SDK (webhook) crea leads
+    }
+
+    // ── whatsapp_sessions: historial del chatbot ────────────────
+    // Los agentes necesitan leer la conversación en el CRM.
+    // Las escrituras las hace exclusivamente el servidor (Admin SDK).
+    match /whatsapp_sessions/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if false;
+    }
+
+    // ── Denegar todo lo demás por defecto ───────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
