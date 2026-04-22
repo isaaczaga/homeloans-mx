@@ -41,9 +41,12 @@ function phoneToDocId(phone) {
 
 // Normaliza número a formato WhatsApp de Twilio: "whatsapp:+52..."
 function normalizeWhatsAppNumber(phone) {
-  const cleaned = String(phone).trim().replace(/^whatsapp:/i, "");
-  const withPlus = cleaned.startsWith("+") ? cleaned : "+" + cleaned.replace(/^\+?/, "");
-  return "whatsapp:" + withPlus;
+  let cleaned = String(phone).trim().replace(/^whatsapp:/i, "");
+  cleaned = cleaned.replace(/\D/g, "");
+  if (cleaned.length === 10) {
+    cleaned = "52" + cleaned; // Asumir México si son 10 dígitos
+  }
+  return "whatsapp:+" + cleaned;
 }
 
 // ── Handler ─────────────────────────────────────────────────

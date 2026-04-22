@@ -608,8 +608,9 @@ let currentChatLeadPhone = null;
 // El webhook usa `phoneToDocId("whatsapp:+<phone>")` → "wa_whatsapp__<phone>"
 function sessionIdFromPhone(phone) {
     if (!phone) return null;
-    const digits = String(phone).replace(/\D/g, "");
+    let digits = String(phone).replace(/\D/g, "");
     if (!digits) return null;
+    if (digits.length === 10) digits = "52" + digits; // Twilio webhook usa 52 para México
     return "wa_whatsapp__" + digits;
 }
 
@@ -863,7 +864,7 @@ function openModal(leadData, leadId) {
                 <i data-lucide="message-circle" class="w-5 h-5 text-green-600"></i> Conversación WhatsApp
             </h4>
             <div id="chat-paused-indicator" class="hidden mb-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2"></div>
-            <div id="chat-messages" class="flex flex-col max-h-72 overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
+            <div id="chat-messages" class="flex flex-col max-h-[400px] overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
                 <p class="text-sm text-gray-400 italic text-center py-4">Cargando...</p>
             </div>
             <div class="flex gap-2 items-end">
