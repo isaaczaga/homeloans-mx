@@ -398,32 +398,19 @@ export default async function handler(req, res) {
     return sendTwiML(res, "");
   }
 
-  // Lead ya calificado y sin media nueva: respuesta estática + link de expediente si falta.
-  if (alreadyQualified && mediaDocs.length === 0) {
-    // Revisar si el expediente ya está completo
-    let expedienteDone = false;
-    if (crmDocId) {
-      try {
-        const leadSnap = await db.collection("solicitudes").doc(crmDocId).get();
-        const data = leadSnap.data() || {};
-        expedienteDone = !!data.expedienteProgreso?.completado;
-      } catch (e) {
-        console.error("[WH] no se pudo leer expedienteProgreso:", e.message);
-      }
-    }
-
-    let reply;
-    if (!expedienteDone && crmDocId) {
+  // ── Revisar estado del expediente si ya está calificado ──
+  let expedienteDone = false;
+  let expedienteLink = "";
+  if (alreadyQualified && crmDocId) {
+    try {
+      const leadSnap = await db.collection("solicitudes").doc(crmDocId).get();
+      const data = leadSnap.data() || {};
+      expedienteDone = !!data.expedienteProgreso?.completado;
       const base = (process.env.PUBLIC_SITE_URL || "https://homeloans.mx").replace(/\/$/, "");
-      const link = `${base}/completar-expediente.html?leadId=${crmDocId}`;
-      reply =
-        `Gracias, ya tenemos su pre-calificación. Para avanzar con el banco falta completar su expediente (empresa, ubicación, referencias y pre-cotización de seguro de vida) — tarda ~3 minutos:\n\n${link}\n\n` +
-        `Si tiene alguna duda, escríbala aquí y un asesor le responderá a la brevedad.`;
-    } else {
-      reply =
-        "Gracias, su expediente está completo. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
+      expedienteLink = `${base}/completar-expediente.html?leadId=${crmDocId}`;
+    } catch (e) {
+      console.error("[WH] no se pudo leer expedienteProgreso:", e.message);
     }
-    return sendTwiML(res, reply);
   }
 
   // ── PASO 4: Llamar a Claude ──
@@ -437,12 +424,19 @@ export default async function handler(req, res) {
 
   messages.push({ role: "user", content: userMsgForClaude });
 
+  let dynamicSystemPrompt = SYSTEM_PROMPT;
+  if (alreadyQualified) {
+    dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su pre-calificación.
+Tu misión ahora es responder a sus dudas de forma clara, amable y MUY concisa (1-2 oraciones máximo). No vuelvas a pedir sus datos financieros ni hagas las 5 preguntas de perfilamiento.
+${!expedienteDone ? `IMPORTANTE: El prospecto aún no completa su expediente final. Si es natural en la conversación, invítalo a completarlo en este enlace (tarda 3 minutos): ${expedienteLink}` : `Su expediente ya está completo. Dile que un asesor experto lo contactará pronto.`}`;
+  }
+
   let rawReply;
   try {
     const claudeResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 400,
-      system: SYSTEM_PROMPT,
+      system: dynamicSystemPrompt,
       messages: messages.slice(-MAX_HISTORY),
     });
     rawReply = claudeResponse.content?.[0]?.text || "Un momento, por favor.";
