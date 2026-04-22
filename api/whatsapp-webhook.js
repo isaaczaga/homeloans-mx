@@ -142,14 +142,18 @@ export default async function handler(req, res) {
   // ── PASO 1: Leer sesión de Firestore ──
   let messages = [];
   let alreadyQualified = false;
+  let crmDocId = null; // ID del documento en "solicitudes" para este lead
+  const sessionRef = doc(db, "whatsapp_sessions", phoneToDocId(fromNumber));
+
   try {
-    const sessionRef = doc(db, "whatsapp_sessions", phoneToDocId(fromNumber));
     const sessionSnap = await getDoc(sessionRef);
     if (sessionSnap.exists()) {
-      messages = sessionSnap.data().messages || [];
-      alreadyQualified = sessionSnap.data().qualified || false;
+      const d = sessionSnap.data();
+      messages = d.messages || [];
+      alreadyQualified = d.qualified || false;
+      crmDocId = d.crmDocId || null;
     }
-    console.log(`[WH] PASO 1 OK — historial: ${messages.length} msgs, calificado: ${alreadyQualified}`);
+    console.log(`[WH] PASO 1 OK — historial: ${messages.length} msgs, calificado: ${alreadyQualified}, crmDocId: ${crmDocId}`);
   } catch (e) {
     console.error("[WH] PASO 1 FAIL — Firestore read:", e.code, e.message);
     return sendTwiML(res, "Disculpe, tuvimos un problema al leer su sesión. Intente de nuevo.");
@@ -162,12 +166,33 @@ export default async function handler(req, res) {
     return sendTwiML(res, reply);
   }
 
+  // ── PASO 1b: Primer mensaje — crear lead inicial en solicitudes ──
+  const isFirstMessage = messages.length === 0;
+  if (isFirstMessage && !crmDocId) {
+    try {
+      const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
+      const docRef = await addDoc(collection(db, "solicitudes"), {
+        fullName: "Lead WhatsApp",
+        phone,
+        primerMensaje: incomingMessage,
+        source: "whatsapp_chatbot",
+        estado: "Recibida",
+        fecha: serverTimestamp(),
+      });
+      crmDocId = docRef.id;
+      console.log(`[WH] PASO 1b OK — Lead inicial creado en solicitudes: ${crmDocId}`);
+    } catch (e) {
+      console.error("[WH] PASO 1b FAIL — Firestore create solicitud:", e.code, e.message);
+      // No bloquear — continuar de todas formas
+    }
+  }
+
   // ── PASO 2: Llamar a Claude ──
   messages.push({ role: "user", content: incomingMessage });
   let rawReply;
   try {
     const claudeResponse = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001", // Haiku: más rápido, menor riesgo de timeout
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 400,
       system: SYSTEM_PROMPT,
       messages: messages.slice(-MAX_HISTORY),
@@ -179,15 +204,14 @@ export default async function handler(req, res) {
     return sendTwiML(res, "Disculpe, el asistente no está disponible en este momento. Intente en unos minutos.");
   }
 
-  // ── PASO 3: Procesar respuesta ──
+  // ── PASO 3: Procesar respuesta y actualizar lead si está calificado ──
   const { cleanText: reply, leadData } = extractLeadData(rawReply);
   let isNowQualified = false;
 
   if (leadData) {
-    // ── PASO 3a: Guardar lead en solicitudes ──
     try {
       const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
-      await addDoc(collection(db, "solicitudes"), {
+      const fullLeadData = {
         fullName: "Lead WhatsApp",
         phone,
         loanPurpose: "compra",
@@ -198,13 +222,25 @@ export default async function handler(req, res) {
         colonia: leadData.colonia || "",
         source: "whatsapp_chatbot",
         estado: "Recibida",
-        fecha: serverTimestamp(),
-      });
+        calificadoEn: serverTimestamp(),
+      };
+
+      if (crmDocId) {
+        // Actualizar el documento ya existente
+        await setDoc(doc(db, "solicitudes", crmDocId), fullLeadData, { merge: true });
+        console.log(`[WH] PASO 3 OK — Lead actualizado en solicitudes: ${crmDocId}`);
+      } else {
+        // Fallback: crear nuevo si no existe el doc inicial
+        const docRef = await addDoc(collection(db, "solicitudes"), {
+          ...fullLeadData,
+          fecha: serverTimestamp(),
+        });
+        crmDocId = docRef.id;
+        console.log(`[WH] PASO 3 OK — Lead nuevo creado en solicitudes: ${crmDocId}`);
+      }
       isNowQualified = true;
-      console.log(`[WH] PASO 3a OK — Lead guardado en solicitudes para ${fromNumber}`);
     } catch (e) {
-      console.error("[WH] PASO 3a FAIL — Firestore write solicitudes:", e.code, e.message);
-      // No bloquear — seguir y responder al usuario de todas formas
+      console.error("[WH] PASO 3 FAIL — Firestore update solicitudes:", e.code, e.message);
     }
   }
 
@@ -212,17 +248,16 @@ export default async function handler(req, res) {
   try {
     messages.push({ role: "assistant", content: reply });
     const trimmed = messages.slice(-MAX_HISTORY);
-    const sessionRef = doc(db, "whatsapp_sessions", phoneToDocId(fromNumber));
     await setDoc(sessionRef, {
       messages: trimmed,
       lastActivity: serverTimestamp(),
       qualified: isNowQualified,
       phone: fromNumber,
+      ...(crmDocId && { crmDocId }),
     }, { merge: true });
     console.log(`[WH] PASO 4 OK — Sesión actualizada (${trimmed.length} msgs)`);
   } catch (e) {
     console.error("[WH] PASO 4 FAIL — Firestore write sesión:", e.code, e.message);
-    // No bloquear — responder al usuario de todas formas
   }
 
   // ── PASO 5: Responder vía TwiML ──
