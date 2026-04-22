@@ -12,3 +12,7 @@ Thumbs.db
 
 # Vercel
 .vercel
+.env*.local
+
+# Firebase Admin service account key — NUNCA subir a GitHub
+firebase-admin-key.json

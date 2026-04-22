@@ -1,39 +1,31 @@
 /**
  * /api/whatsapp-webhook.js
  * Chatbot de WhatsApp para HomeLoans.mx
- * Twilio → Claude (Isaac) → Firestore → Twilio
+ * Twilio → Claude (Isaac) → Firestore Admin → Twilio
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import twilio from "twilio";
-import { initializeApp, getApps } from "firebase/app";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-// ── Firebase ────────────────────────────────────────────────
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
+// ── Firebase Admin SDK (bypasea reglas de seguridad) ────────
 let db;
 try {
-  const fbApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  db = getFirestore(fbApp);
-  console.log("[WH] Firebase OK — project:", process.env.FIREBASE_PROJECT_ID);
+  const app = getApps().length
+    ? getApps()[0]
+    : initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+          // Vercel codifica saltos de línea como \n literal — los restauramos
+          privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+      });
+  db = getFirestore(app);
+  console.log("[WH] Firebase Admin OK — project:", process.env.FIREBASE_ADMIN_PROJECT_ID);
 } catch (e) {
-  console.error("[WH] Firebase INIT ERROR:", e.message);
+  console.error("[WH] Firebase Admin INIT ERROR:", e.message);
 }
 
 // ── Anthropic ───────────────────────────────────────────────
@@ -41,7 +33,6 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── TwiML helper (compatible con ESM + Twilio v5) ──────────
 function buildTwiML(message) {
-  // Acceso robusto a MessagingResponse en ESM
   const MR =
     twilio?.twiml?.MessagingResponse ||
     twilio?.default?.twiml?.MessagingResponse;
@@ -50,15 +41,16 @@ function buildTwiML(message) {
     r.message(message);
     return r.toString();
   }
-  // Fallback manual si el import de twiml falla
-  const safe = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const safe = message
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
 }
 
 function sendTwiML(res, message) {
-  const xml = buildTwiML(message);
   res.setHeader("Content-Type", "text/xml");
-  return res.status(200).send(xml);
+  return res.status(200).send(buildTwiML(message));
 }
 
 // ── Sistema prompt de Isaac ─────────────────────────────────
@@ -135,19 +127,19 @@ export default async function handler(req, res) {
   }
 
   if (!db) {
-    console.error("[WH] Firestore no inicializado — revisa variables FIREBASE_*");
+    console.error("[WH] Firestore Admin no inicializado — revisa FIREBASE_ADMIN_*");
     return sendTwiML(res, "Lo sentimos, hay un problema técnico. Intente más tarde.");
   }
 
   // ── PASO 1: Leer sesión de Firestore ──
   let messages = [];
   let alreadyQualified = false;
-  let crmDocId = null; // ID del documento en "solicitudes" para este lead
-  const sessionRef = doc(db, "whatsapp_sessions", phoneToDocId(fromNumber));
+  let crmDocId = null;
+  const sessionRef = db.collection("whatsapp_sessions").doc(phoneToDocId(fromNumber));
 
   try {
-    const sessionSnap = await getDoc(sessionRef);
-    if (sessionSnap.exists()) {
+    const sessionSnap = await sessionRef.get();
+    if (sessionSnap.exists) {
       const d = sessionSnap.data();
       messages = d.messages || [];
       alreadyQualified = d.qualified || false;
@@ -161,7 +153,8 @@ export default async function handler(req, res) {
 
   // Lead ya calificado
   if (alreadyQualified) {
-    const reply = "Gracias, ya tenemos su información. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
+    const reply =
+      "Gracias, ya tenemos su información. Un asesor de HomeLoans.mx le contactará en las próximas 24 horas. ¿Tiene alguna pregunta adicional?";
     console.log("[WH] Lead ya calificado — respuesta directa");
     return sendTwiML(res, reply);
   }
@@ -171,19 +164,18 @@ export default async function handler(req, res) {
   if (isFirstMessage && !crmDocId) {
     try {
       const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
-      const docRef = await addDoc(collection(db, "solicitudes"), {
+      const docRef = await db.collection("solicitudes").add({
         fullName: "Lead WhatsApp",
         phone,
         primerMensaje: incomingMessage,
         source: "whatsapp_chatbot",
         estado: "Recibida",
-        fecha: serverTimestamp(),
+        fecha: FieldValue.serverTimestamp(),
       });
       crmDocId = docRef.id;
-      console.log(`[WH] PASO 1b OK — Lead inicial creado en solicitudes: ${crmDocId}`);
+      console.log(`[WH] PASO 1b OK — Lead inicial creado: ${crmDocId}`);
     } catch (e) {
       console.error("[WH] PASO 1b FAIL — Firestore create solicitud:", e.code, e.message);
-      // No bloquear — continuar de todas formas
     }
   }
 
@@ -201,7 +193,10 @@ export default async function handler(req, res) {
     console.log(`[WH] PASO 2 OK — Claude respondió (${rawReply.length} chars)`);
   } catch (e) {
     console.error("[WH] PASO 2 FAIL — Claude API:", e.status, e.message);
-    return sendTwiML(res, "Disculpe, el asistente no está disponible en este momento. Intente en unos minutos.");
+    return sendTwiML(
+      res,
+      "Disculpe, el asistente no está disponible en este momento. Intente en unos minutos."
+    );
   }
 
   // ── PASO 3: Procesar respuesta y actualizar lead si está calificado ──
@@ -222,21 +217,19 @@ export default async function handler(req, res) {
         colonia: leadData.colonia || "",
         source: "whatsapp_chatbot",
         estado: "Recibida",
-        calificadoEn: serverTimestamp(),
+        calificadoEn: FieldValue.serverTimestamp(),
       };
 
       if (crmDocId) {
-        // Actualizar el documento ya existente
-        await setDoc(doc(db, "solicitudes", crmDocId), fullLeadData, { merge: true });
-        console.log(`[WH] PASO 3 OK — Lead actualizado en solicitudes: ${crmDocId}`);
+        await db.collection("solicitudes").doc(crmDocId).set(fullLeadData, { merge: true });
+        console.log(`[WH] PASO 3 OK — Lead actualizado: ${crmDocId}`);
       } else {
-        // Fallback: crear nuevo si no existe el doc inicial
-        const docRef = await addDoc(collection(db, "solicitudes"), {
+        const docRef = await db.collection("solicitudes").add({
           ...fullLeadData,
-          fecha: serverTimestamp(),
+          fecha: FieldValue.serverTimestamp(),
         });
         crmDocId = docRef.id;
-        console.log(`[WH] PASO 3 OK — Lead nuevo creado en solicitudes: ${crmDocId}`);
+        console.log(`[WH] PASO 3 OK — Lead nuevo creado: ${crmDocId}`);
       }
       isNowQualified = true;
     } catch (e) {
@@ -248,13 +241,16 @@ export default async function handler(req, res) {
   try {
     messages.push({ role: "assistant", content: reply });
     const trimmed = messages.slice(-MAX_HISTORY);
-    await setDoc(sessionRef, {
-      messages: trimmed,
-      lastActivity: serverTimestamp(),
-      qualified: isNowQualified,
-      phone: fromNumber,
-      ...(crmDocId && { crmDocId }),
-    }, { merge: true });
+    await sessionRef.set(
+      {
+        messages: trimmed,
+        lastActivity: FieldValue.serverTimestamp(),
+        qualified: isNowQualified,
+        phone: fromNumber,
+        ...(crmDocId && { crmDocId }),
+      },
+      { merge: true }
+    );
     console.log(`[WH] PASO 4 OK — Sesión actualizada (${trimmed.length} msgs)`);
   } catch (e) {
     console.error("[WH] PASO 4 FAIL — Firestore write sesión:", e.code, e.message);
