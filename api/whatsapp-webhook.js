@@ -461,6 +461,16 @@ export default async function handler(req, res) {
     finalReply = `Recibimos su ${labels.join(" y ")}. ${reply}`;
   }
 
+  // Al calificar (primera vez), enviar enlace para completar expediente.
+  // Usamos crmDocId (el Firestore doc ID, 20 chars, no guessable) como token del enlace.
+  if (isNowQualified && crmDocId) {
+    const base =
+      process.env.PUBLIC_SITE_URL ||
+      "https://homeloans.mx";
+    const link = `${base.replace(/\/$/, "")}/completar-expediente.html?leadId=${crmDocId}`;
+    finalReply += `\n\nPara completar su expediente (ubicación, empresa, pre-cotización de seguro de vida) use este enlace — tarda ~3 min:\n${link}`;
+  }
+
   // ── PASO 6: Persistir sesión ──
   try {
     messages.push({ role: "assistant", content: reply });

@@ -517,10 +517,18 @@ tableBody.addEventListener('click', (e) => {
 
 // ==================== KANBAN ====================
 
+// Normaliza valores legacy de `estado` para que encajen en las columnas actuales del Kanban.
+// Existieron leads guardados con "Pre-calificación Recibida" por el form viejo (bug).
+function normalizeEstado(estado) {
+    const raw = (estado || 'Recibida').trim();
+    if (raw === 'Pre-calificación Recibida' || raw === 'Pre-Calificación Recibida') return 'Recibida';
+    return raw;
+}
+
 function renderKanban() {
     kanbanBoard.innerHTML = '';
     KANBAN_COLUMNS.forEach(col => {
-        const colLeads = allLeads.filter(l => (l.estado || 'Recibida') === col.id);
+        const colLeads = allLeads.filter(l => normalizeEstado(l.estado) === col.id);
         const colEl = document.createElement('div');
         colEl.className = `kanban-column rounded-xl border border-gray-200 ${col.colCls}`;
         colEl.dataset.status = col.id;
@@ -666,6 +674,110 @@ function subscribeToChat(phone) {
     });
 }
 
+function renderExpedienteSection(lead) {
+    const hasAny =
+        lead.empresa || lead.puesto || lead.antiguedadAnios ||
+        lead.direccionResidencia || lead.direccionTrabajo || lead.direccionInmueble ||
+        lead.geoResidencia || lead.geoTrabajo || lead.geoInmueble ||
+        (Array.isArray(lead.referencias) && lead.referencias.length) ||
+        lead.pesoKg || lead.estaturaM ||
+        (Array.isArray(lead.condicionesMedicas) && lead.condicionesMedicas.length);
+
+    if (!hasAny) return '';
+
+    const progreso = lead.expedienteProgreso || {};
+    const badge = (ok, label) => {
+        const cls = ok ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500';
+        const icon = ok ? 'check' : 'minus';
+        return `<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cls}">
+            <i data-lucide="${icon}" class="w-3 h-3"></i>${label}
+        </span>`;
+    };
+
+    const mapsLink = (geo) => {
+        if (!geo || geo.lat === undefined || geo.lng === undefined) return '';
+        const url = `https://www.google.com/maps/search/?api=1&query=${geo.lat},${geo.lng}`;
+        const acc = geo.accuracy ? ` ±${Math.round(geo.accuracy)}m` : '';
+        return `<a href="${url}" target="_blank" class="ml-2 text-xs text-emerald-600 hover:underline inline-flex items-center gap-1">
+            <i data-lucide="map-pin" class="w-3 h-3"></i>GPS${acc}
+        </a>`;
+    };
+
+    const addrRow = (label, addr, geo) => {
+        if (!addr && !geo) return '';
+        return `<div class="py-1">
+            <dt class="text-sm font-medium text-gray-500">${label}</dt>
+            <dd class="text-gray-900 text-sm">${addr || '<span class="italic text-gray-400">(sin dirección)</span>'}${mapsLink(geo)}</dd>
+        </div>`;
+    };
+
+    let html = `<h4 class="text-lg font-semibold border-b pb-2 mt-2 flex items-center gap-2">
+        <i data-lucide="folder-check" class="w-5 h-5 text-emerald-600"></i>
+        Expediente completo
+        <div class="ml-auto flex flex-wrap gap-1">
+            ${badge(progreso.laboral, 'Laboral')}
+            ${badge(progreso.ubicacion, 'Ubicación')}
+            ${badge(progreso.referencias, 'Referencias')}
+            ${badge(progreso.medico, 'Médico')}
+        </div>
+    </h4>`;
+
+    // Laboral
+    if (lead.empresa || lead.puesto || lead.antiguedadAnios) {
+        html += '<dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-2">';
+        if (lead.empresa) html += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">Empresa</dt><dd class="text-gray-900 text-sm">${lead.empresa}</dd></div>`;
+        if (lead.puesto) html += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">Puesto</dt><dd class="text-gray-900 text-sm">${lead.puesto}</dd></div>`;
+        if (lead.antiguedadAnios) html += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">Antigüedad</dt><dd class="text-gray-900 text-sm">${lead.antiguedadAnios} años</dd></div>`;
+        html += '</dl>';
+    }
+
+    // Ubicaciones
+    const addrHtml =
+        addrRow('Residencia', lead.direccionResidencia, lead.geoResidencia) +
+        addrRow('Trabajo', lead.direccionTrabajo, lead.geoTrabajo) +
+        addrRow('Inmueble', lead.direccionInmueble, lead.geoInmueble);
+    if (addrHtml) {
+        html += `<dl class="grid grid-cols-1 gap-y-2 mt-2">${addrHtml}</dl>`;
+    }
+
+    // Referencias
+    if (Array.isArray(lead.referencias) && lead.referencias.length) {
+        html += '<p class="text-sm font-medium text-gray-500 mt-3 mb-1">Referencias</p><div class="space-y-2">';
+        lead.referencias.forEach((r, i) => {
+            html += `<div class="bg-gray-50 border border-gray-100 rounded-lg p-3 text-sm">
+                <p class="font-semibold text-gray-800">${[r.nombre, r.apellidos].filter(Boolean).join(' ') || '—'}${r.relacion ? `<span class="ml-2 text-xs font-normal text-gray-500">(${r.relacion})</span>` : ''}</p>
+                ${r.telefono ? `<p class="text-gray-600 text-xs">📱 <a href="tel:${r.telefono}" class="hover:underline">${r.telefono}</a></p>` : ''}
+                ${r.email ? `<p class="text-gray-600 text-xs">✉️ <a href="mailto:${r.email}" class="hover:underline">${r.email}</a></p>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    // Médico
+    if (lead.pesoKg || lead.estaturaM || (Array.isArray(lead.condicionesMedicas) && lead.condicionesMedicas.length)) {
+        html += '<p class="text-sm font-medium text-gray-500 mt-3 mb-1">Perfil médico (para seguro de vida)</p><div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm">';
+        const pieces = [];
+        if (lead.pesoKg) pieces.push(`<strong>${lead.pesoKg} kg</strong>`);
+        if (lead.estaturaM) pieces.push(`<strong>${lead.estaturaM} m</strong>`);
+        if (lead.pesoKg && lead.estaturaM) {
+            const bmi = (Number(lead.pesoKg) / (Number(lead.estaturaM) * Number(lead.estaturaM))).toFixed(1);
+            pieces.push(`IMC <strong>${bmi}</strong>`);
+        }
+        if (pieces.length) html += `<p class="text-gray-800">${pieces.join(' · ')}</p>`;
+        if (Array.isArray(lead.condicionesMedicas) && lead.condicionesMedicas.length) {
+            html += `<div class="mt-2 flex flex-wrap gap-1">${lead.condicionesMedicas.map(c => `<span class="text-xs bg-white border border-blue-200 text-blue-800 px-2 py-0.5 rounded-full">${c}</span>`).join('')}</div>`;
+        }
+        if (lead.notasMedicas) html += `<p class="mt-2 text-gray-700 text-xs italic">"${lead.notasMedicas}"</p>`;
+        if (lead.medicalConsentAt) {
+            const when = new Date(lead.medicalConsentAt).toLocaleString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'});
+            html += `<p class="mt-2 text-[11px] text-blue-700">Consentimiento LFPDPPP aceptado ${when}</p>`;
+        }
+        html += '</div>';
+    }
+
+    return html;
+}
+
 function renderDocumentsSection(documentos) {
     // Retrocompatible: si es objeto viejo {nombre: url}, lo convierte a array.
     const docs = Array.isArray(documentos)
@@ -737,6 +849,9 @@ function openModal(leadData, leadId) {
         });
         html += '</dl>';
     }
+
+    // Expediente completo (2ª etapa)
+    html += renderExpedienteSection(leadData);
 
     // Documents (array nuevo, retrocompatible con objeto viejo)
     html += renderDocumentsSection(leadData.documentos);

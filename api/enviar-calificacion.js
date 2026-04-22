@@ -1,72 +1,99 @@
-// /api/enviar-calificacion.js
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+/**
+ * /api/enviar-calificacion.js
+ * Recibe la pre-calificación del form público de homeloans.mx y crea
+ * un lead en Firestore.
+ *
+ * IMPORTANTE: Usa el Admin SDK para bypasear las reglas de Firestore
+ * (que tienen `allow create: if false` en la colección `solicitudes`).
+ * Si se usara el Client SDK, todas las solicitudes fallarían con
+ * "Error al escribir en la base de datos".
+ */
 
-// --- Configuración de Firebase ---
-// Este código leerá las claves directamente desde las Variables de Entorno de Vercel
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
-};
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-// --- Inicializar Firebase de forma segura ---
-let app;
+// ── Firebase Admin SDK (singleton) ──────────────────────────
 let db;
-
 try {
-    if (!getApps().length) {
-        if (!firebaseConfig.projectId) {
-            throw new Error("Las variables de entorno de Firebase no se cargaron. Revisa la configuración en Vercel.");
-        }
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApps()[0];
-    }
-    db = getFirestore(app);
+  const app = getApps().length
+    ? getApps()[0]
+    : initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+      });
+  db = getFirestore(app);
+  console.log("[FORM] Firebase Admin OK — project:", process.env.FIREBASE_ADMIN_PROJECT_ID);
 } catch (e) {
-    console.error("Error al inicializar Firebase:", e.message);
+  console.error("[FORM] Firebase Admin INIT ERROR:", e.message);
 }
 
+// ── Validación simple ───────────────────────────────────────
+function toInt(v) {
+  if (v === undefined || v === null || v === "") return 0;
+  const n = Number(String(v).replace(/,/g, ""));
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ message: 'Method Not Allowed' });
-    }
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, message: "Method Not Allowed" });
+  }
 
-    if (!db) {
-        return res.status(500).json({ success: false, message: 'Error de configuración del servidor: no se pudo conectar a la base de datos.' });
-    }
+  if (!db) {
+    console.error("[FORM] Firestore no disponible — revisa FIREBASE_ADMIN_* en Vercel");
+    return res.status(500).json({
+      success: false,
+      message: "Error de configuración del servidor. Contáctanos directamente por WhatsApp.",
+    });
+  }
 
-    const data = req.body;
-    const payload = {
-        fullName: data.fullName, email: data.email, phone: data.phone,
-        loanPurpose: data.loanPurpose, propertyValue: data.propertyValue,
-        monthlyIncome: data.monthlyIncome, creditScore: data.creditScore,
-        fecha: serverTimestamp(), estado: 'Pre-calificación Recibida'
-    };
+  const data = req.body || {};
 
-    if (data.loanPurpose === 'compra') {
-        payload.downPayment = data.downPayment;
-    } else if (data.loanPurpose === 'refinanciamiento') {
-        payload.currentBalance = data.currentBalance;
-        payload.currentInterestRate = data.currentInterestRate;
-        payload.currentBank = data.currentBank;
-    }
+  // Validaciones básicas
+  if (!data.fullName || !data.phone) {
+    return res.status(400).json({
+      success: false,
+      message: "Faltan datos obligatorios (nombre o teléfono).",
+    });
+  }
 
-    try {
-        console.log("Intentando guardar en Firestore con Project ID:", process.env.FIREBASE_PROJECT_ID);
-        
-        const docRef = await addDoc(collection(db, "solicitudes"), payload);
-        console.log("¡ÉXITO! Documento escrito con ID: ", docRef.id);
-        
-        res.status(200).json({ success: true, message: 'Solicitud guardada.', docId: docRef.id });
+  const payload = {
+    fullName: String(data.fullName).trim(),
+    email: String(data.email || "").trim(),
+    phone: String(data.phone).replace(/\D/g, ""),
+    loanPurpose: data.loanPurpose || "compra",
+    propertyValue: toInt(data.propertyValue),
+    monthlyIncome: toInt(data.monthlyIncome),
+    creditScore: data.creditScore || "",
+    fecha: FieldValue.serverTimestamp(),
+    estado: "Recibida",
+    source: "web_form",
+  };
 
-    } catch (error) {
-        console.error('Error detallado al guardar en Firestore:', error);
-        return res.status(500).json({ success: false, message: 'Error al escribir en la base de datos.' });
-    }
+  if (payload.loanPurpose === "compra") {
+    payload.downPayment = toInt(data.downPayment);
+  } else if (payload.loanPurpose === "refinanciamiento") {
+    payload.currentBalance = toInt(data.currentBalance);
+    payload.currentInterestRate = String(data.currentInterestRate || "");
+    payload.currentBank = String(data.currentBank || "");
+  }
+
+  try {
+    const docRef = await db.collection("solicitudes").add(payload);
+    console.log(`[FORM] Lead creado: ${docRef.id} — ${payload.fullName} (${payload.phone})`);
+    return res.status(200).json({
+      success: true,
+      message: "Solicitud guardada.",
+      docId: docRef.id,
+    });
+  } catch (e) {
+    console.error("[FORM] Firestore write FAIL:", e.code, e.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error al guardar su solicitud. Intente de nuevo o contáctenos por WhatsApp.",
+    });
+  }
 }

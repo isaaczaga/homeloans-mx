@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completar Expediente - HomeLoans.mx</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .spinner { border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .section-card { transition: all 0.3s ease; }
+        .section-card.collapsed .section-body { display: none; }
+        .section-card.collapsed .section-chevron { transform: rotate(-90deg); }
+        .section-chevron { transition: transform 0.2s ease; }
+        .geo-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+        .geo-chip.ok { background: #d1fae5; color: #065f46; }
+        .geo-chip.fail { background: #fee2e2; color: #991b1b; }
+        .geo-chip.idle { background: #f3f4f6; color: #4b5563; }
+        .pill-choice { cursor: pointer; user-select: none; }
+        .pill-choice input { position: absolute; opacity: 0; }
+        .pill-choice .pill-ui { padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 9999px; font-size: 13px; color: #374151; background: white; transition: all 0.15s ease; }
+        .pill-choice input:checked + .pill-ui { background: #d1fae5; border-color: #059669; color: #065f46; font-weight: 600; }
+        .pill-choice:hover .pill-ui { border-color: #059669; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-8">
+    <div class="container mx-auto p-4 max-w-3xl">
+        <!-- Header -->
+        <div class="bg-white rounded-t-2xl shadow-xl">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <a href="index.html" class="flex items-center space-x-2">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                    <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
+                </a>
+                <a href="https://wa.me/525610074116" target="_blank" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center"><i data-lucide="message-circle" class="w-4 h-4 mr-1"></i>Ayuda por WhatsApp</a>
+            </div>
+        </div>
+
+        <!-- Intro / estado inicial -->
+        <div id="intro-panel" class="bg-white shadow-xl p-8">
+            <div class="text-center">
+                <div class="bg-emerald-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-5">
+                    <i data-lucide="folder-check" class="text-emerald-600 w-10 h-10"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">Completa tu expediente</h1>
+                <p class="mt-3 text-gray-600 max-w-xl mx-auto">
+                    Ya recibimos tu pre-calificación. Este paso nos permite avanzar tu solicitud
+                    con el banco y <strong>pre-cotizar sin costo tu seguro de vida hipotecario</strong>.
+                    Tarda ~3 minutos.
+                </p>
+
+                <div id="no-lead-error" class="hidden mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+                    <div class="flex items-start">
+                        <i data-lucide="alert-circle" class="text-red-600 w-5 h-5 mr-2 mt-0.5 flex-shrink-0"></i>
+                        <div>
+                            <p class="font-semibold text-red-800">Enlace inválido</p>
+                            <p class="text-sm text-red-700 mt-1">
+                                Este enlace no trae un identificador de expediente. Revisa el mensaje de WhatsApp
+                                que te compartimos o escríbenos para pedirte uno nuevo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="start-btn" class="mt-8 bg-emerald-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-emerald-700 transition inline-flex items-center">
+                    Empezar <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="expediente-form" class="hidden bg-white shadow-xl p-6 md:p-8 space-y-6">
+
+            <!-- Sección 1: Información laboral -->
+            <section class="section-card border border-gray-200 rounded-xl overflow-hidden">
+                <header class="flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-toggle>
+                    <div class="flex items-center">
+                        <div class="bg-emerald-100 rounded-lg w-10 h-10 flex items-center justify-center mr-3">
+                            <i data-lucide="briefcase" class="text-emerald-600 w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-gray-900">Información laboral</h2>
+                            <p class="text-xs text-gray-500">Dónde trabajas actualmente</p>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-down" class="section-chevron text-gray-400 w-5 h-5"></i>
+                </header>
+                <div class="section-body p-5 space-y-4">
+                    <div>
+                        <label for="empresa" class="block font-medium text-gray-700 text-sm">Nombre de la empresa <span class="text-red-500">*</span></label>
+                        <input type="text" id="empresa" name="empresa" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Ej. Grupo Bimbo, S.A.B. de C.V." required>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="puesto" class="block font-medium text-gray-700 text-sm">Puesto <span class="text-gray-400 font-normal">(opcional)</span></label>
+                            <input type="text" id="puesto" name="puesto" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Ej. Gerente de ventas">
+                        </div>
+                        <div>
+                            <label for="antiguedadAnios" class="block font-medium text-gray-700 text-sm">Antigüedad (años) <span class="text-gray-400 font-normal">(opcional)</span></label>
+                            <input type="number" id="antiguedadAnios" name="antiguedadAnios" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" min="0" max="60" step="0.5" placeholder="3.5">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 2: Ubicaciones -->
+            <section class="section-card border border-gray-200 rounded-xl overflow-hidden">
+                <header class="flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-toggle>
+                    <div class="flex items-center">
+                        <div class="bg-emerald-100 rounded-lg w-10 h-10 flex items-center justify-center mr-3">
+                            <i data-lucide="map-pin" class="text-emerald-600 w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-gray-900">Ubicaciones</h2>
+                            <p class="text-xs text-gray-500">Residencia, trabajo e inmueble</p>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-down" class="section-chevron text-gray-400 w-5 h-5"></i>
+                </header>
+                <div class="section-body p-5 space-y-5">
+                    <p class="text-xs text-gray-500 bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex items-start">
+                        <i data-lucide="info" class="text-emerald-600 w-4 h-4 mr-2 mt-0.5 flex-shrink-0"></i>
+                        <span>Puedes escribir la dirección a mano o compartir tu ubicación actual con el botón de GPS. Las coordenadas nos ayudan a validar el inmueble con el perito.</span>
+                    </p>
+
+                    <!-- Residencia -->
+                    <div>
+                        <label class="block font-medium text-gray-700 text-sm">Dirección de residencia <span class="text-red-500">*</span></label>
+                        <textarea id="direccionResidencia" name="direccionResidencia" rows="2" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Calle, número, colonia, municipio, CP, estado" required></textarea>
+                        <div class="mt-2 flex items-center gap-3">
+                            <button type="button" class="geo-btn text-xs font-semibold text-emerald-700 hover:text-emerald-900 flex items-center" data-geo="geoResidencia">
+                                <i data-lucide="crosshair" class="w-4 h-4 mr-1"></i>Usar mi ubicación actual
+                            </button>
+                            <span class="geo-chip idle" data-geo-chip="geoResidencia"><i data-lucide="minus" class="w-3 h-3"></i>sin GPS</span>
+                        </div>
+                    </div>
+
+                    <!-- Trabajo -->
+                    <div>
+                        <label class="block font-medium text-gray-700 text-sm">Dirección del trabajo <span class="text-gray-400 font-normal">(opcional)</span></label>
+                        <textarea id="direccionTrabajo" name="direccionTrabajo" rows="2" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Dirección de la oficina o centro de labores"></textarea>
+                        <div class="mt-2 flex items-center gap-3">
+                            <button type="button" class="geo-btn text-xs font-semibold text-emerald-700 hover:text-emerald-900 flex items-center" data-geo="geoTrabajo">
+                                <i data-lucide="crosshair" class="w-4 h-4 mr-1"></i>Usar mi ubicación actual
+                            </button>
+                            <span class="geo-chip idle" data-geo-chip="geoTrabajo"><i data-lucide="minus" class="w-3 h-3"></i>sin GPS</span>
+                        </div>
+                    </div>
+
+                    <!-- Inmueble -->
+                    <div>
+                        <label class="block font-medium text-gray-700 text-sm">Dirección del inmueble a comprar o refinanciar <span class="text-red-500">*</span></label>
+                        <textarea id="direccionInmueble" name="direccionInmueble" rows="2" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Dirección exacta del inmueble" required></textarea>
+                        <div class="mt-2 flex items-center gap-3">
+                            <button type="button" class="geo-btn text-xs font-semibold text-emerald-700 hover:text-emerald-900 flex items-center" data-geo="geoInmueble">
+                                <i data-lucide="crosshair" class="w-4 h-4 mr-1"></i>Usar mi ubicación actual (si estás en el inmueble)
+                            </button>
+                            <span class="geo-chip idle" data-geo-chip="geoInmueble"><i data-lucide="minus" class="w-3 h-3"></i>sin GPS</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 3: Referencias (opcional con incentivo) -->
+            <section class="section-card border border-gray-200 rounded-xl overflow-hidden">
+                <header class="flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-toggle>
+                    <div class="flex items-center">
+                        <div class="bg-emerald-100 rounded-lg w-10 h-10 flex items-center justify-center mr-3">
+                            <i data-lucide="users" class="text-emerald-600 w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-gray-900">Referencias personales o comerciales</h2>
+                            <p class="text-xs text-gray-500">Opcional — acelera tu aprobación</p>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-down" class="section-chevron text-gray-400 w-5 h-5"></i>
+                </header>
+                <div class="section-body p-5 space-y-4">
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start">
+                        <i data-lucide="zap" class="text-amber-600 w-5 h-5 mr-2 mt-0.5 flex-shrink-0"></i>
+                        <div class="text-sm text-amber-900">
+                            <strong>Agregar 2 referencias acelera tu aprobación.</strong> Los bancos las consideran parte del análisis; si no las das ahora, te las pediremos después.
+                        </div>
+                    </div>
+
+                    <!-- Referencia 1 -->
+                    <div class="border border-gray-200 rounded-lg p-4 bg-white">
+                        <h3 class="font-semibold text-sm text-gray-700 mb-3">Referencia 1</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input type="text" data-ref="0" data-field="nombre" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Nombre">
+                            <input type="text" data-ref="0" data-field="apellidos" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Apellidos">
+                            <input type="tel" data-ref="0" data-field="telefono" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Teléfono (10 dígitos)">
+                            <input type="email" data-ref="0" data-field="email" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Email (opcional)">
+                            <select data-ref="0" data-field="relacion" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm md:col-span-2 bg-white">
+                                <option value="">Relación (opcional)…</option>
+                                <option>Familiar</option>
+                                <option>Amigo/a</option>
+                                <option>Jefe/a directo</option>
+                                <option>Compañero/a de trabajo</option>
+                                <option>Cliente comercial</option>
+                                <option>Proveedor comercial</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Referencia 2 -->
+                    <div class="border border-gray-200 rounded-lg p-4 bg-white">
+                        <h3 class="font-semibold text-sm text-gray-700 mb-3">Referencia 2</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input type="text" data-ref="1" data-field="nombre" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Nombre">
+                            <input type="text" data-ref="1" data-field="apellidos" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Apellidos">
+                            <input type="tel" data-ref="1" data-field="telefono" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Teléfono (10 dígitos)">
+                            <input type="email" data-ref="1" data-field="email" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Email (opcional)">
+                            <select data-ref="1" data-field="relacion" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm md:col-span-2 bg-white">
+                                <option value="">Relación (opcional)…</option>
+                                <option>Familiar</option>
+                                <option>Amigo/a</option>
+                                <option>Jefe/a directo</option>
+                                <option>Compañero/a de trabajo</option>
+                                <option>Cliente comercial</option>
+                                <option>Proveedor comercial</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 4: Perfil médico (para seguro de vida, con consentimiento LFPDPPP) -->
+            <section class="section-card border border-gray-200 rounded-xl overflow-hidden">
+                <header class="flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-toggle>
+                    <div class="flex items-center">
+                        <div class="bg-emerald-100 rounded-lg w-10 h-10 flex items-center justify-center mr-3">
+                            <i data-lucide="heart-pulse" class="text-emerald-600 w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-gray-900">Pre-cotización de seguro de vida</h2>
+                            <p class="text-xs text-gray-500">Opcional — requerido por el banco al cierre</p>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-down" class="section-chevron text-gray-400 w-5 h-5"></i>
+                </header>
+                <div class="section-body p-5 space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <i data-lucide="shield-check" class="text-blue-600 w-5 h-5 mr-2 mt-0.5 flex-shrink-0"></i>
+                            <div class="text-sm text-blue-900">
+                                <p class="font-semibold mb-1">¿Para qué pedimos estos datos?</p>
+                                <p>El banco requiere un seguro de vida hipotecario. Con esta información pre-cotizamos varias aseguradoras para conseguirte la prima más baja. <strong>Si prefieres, puedes saltar esta sección</strong> y enviarla después.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consentimiento LFPDPPP -->
+                    <label class="flex items-start bg-gray-50 border border-gray-200 rounded-lg p-3 cursor-pointer">
+                        <input type="checkbox" id="medicalConsent" class="mt-1 mr-3 w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500">
+                        <span class="text-xs text-gray-700">
+                            Autorizo a HomeLoans.mx a recabar y tratar mis <strong>datos personales sensibles</strong>
+                            (peso, estatura, condiciones médicas) <strong>únicamente</strong> para pre-cotizar mi
+                            seguro de vida hipotecario y compartirlos con las aseguradoras participantes. Conozco mi
+                            derecho a ejercer ARCO (Acceso, Rectificación, Cancelación y Oposición) conforme a la
+                            <a href="aviso-privacidad.html" target="_blank" class="text-emerald-700 underline">LFPDPPP y aviso de privacidad</a>.
+                        </span>
+                    </label>
+
+                    <div id="medical-fields" class="space-y-4 opacity-50 pointer-events-none transition">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="pesoKg" class="block font-medium text-gray-700 text-sm">Peso (kg)</label>
+                                <input type="number" id="pesoKg" name="pesoKg" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" min="30" max="250" step="0.1" placeholder="75.5">
+                            </div>
+                            <div>
+                                <label for="estaturaM" class="block font-medium text-gray-700 text-sm">Estatura (m)</label>
+                                <input type="number" id="estaturaM" name="estaturaM" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" min="1.2" max="2.3" step="0.01" placeholder="1.75">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-gray-700 text-sm mb-2">¿Padeces alguna de estas condiciones? (marca las que apliquen)</label>
+                            <div class="flex flex-wrap gap-2" id="condiciones-pills">
+                                <!-- Pills injected by JS -->
+                            </div>
+                        </div>
+                        <div>
+                            <label for="notasMedicas" class="block font-medium text-gray-700 text-sm">Notas adicionales (opcional)</label>
+                            <textarea id="notasMedicas" name="notasMedicas" rows="2" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" placeholder="Ej. medicamento actual, cirugía reciente, etc." maxlength="500"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Submit -->
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4 pt-2">
+                <p class="text-xs text-gray-500 text-center md:text-left">
+                    Puedes guardar y volver luego. Tus respuestas se envían cifradas a nuestros servidores.
+                </p>
+                <button type="submit" id="submit-btn" class="bg-emerald-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-emerald-700 transition w-full md:w-auto flex items-center justify-center min-w-[200px]">
+                    <span class="btn-text">Guardar expediente</span>
+                    <span class="spinner hidden ml-2"></span>
+                </button>
+            </div>
+
+            <!-- Error banner -->
+            <div id="error-banner" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start">
+                    <i data-lucide="alert-circle" class="text-red-600 w-5 h-5 mr-2 mt-0.5 flex-shrink-0"></i>
+                    <p id="error-text" class="text-sm text-red-800"></p>
+                </div>
+            </div>
+        </form>
+
+        <!-- Success panel -->
+        <div id="success-panel" class="hidden bg-white shadow-xl p-8 text-center">
+            <div class="bg-emerald-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="check-circle-2" class="text-emerald-600 w-16 h-16"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900">¡Expediente completado!</h2>
+            <p id="success-message" class="mt-4 text-gray-600 max-w-md mx-auto">
+                Recibimos toda tu información. Te avisaremos por WhatsApp en las próximas 24 horas con los siguientes pasos.
+            </p>
+            <a href="https://wa.me/525610074116" target="_blank" class="mt-8 bg-green-500 text-white font-semibold px-8 py-3 rounded-lg hover:bg-green-600 transition inline-flex items-center">
+                <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>Abrir WhatsApp
+            </a>
+        </div>
+
+        <!-- Footer-bottom -->
+        <div class="bg-white rounded-b-2xl shadow-xl p-4 border-t border-gray-200 text-center text-xs text-gray-500">
+            HomeLoans.mx © 2026 · <a href="aviso-privacidad.html" class="underline hover:text-emerald-700">Aviso de Privacidad</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+
+            // ── Parse leadId from URL ──
+            const urlParams = new URLSearchParams(window.location.search);
+            const leadId = urlParams.get('leadId') || urlParams.get('id') || '';
+
+            const introPanel = document.getElementById('intro-panel');
+            const noLeadError = document.getElementById('no-lead-error');
+            const startBtn = document.getElementById('start-btn');
+            const form = document.getElementById('expediente-form');
+            const successPanel = document.getElementById('success-panel');
+            const errorBanner = document.getElementById('error-banner');
+            const errorText = document.getElementById('error-text');
+
+            if (!leadId) {
+                noLeadError.classList.remove('hidden');
+                startBtn.classList.add('hidden');
+                lucide.createIcons();
+                return;
+            }
+
+            startBtn.addEventListener('click', () => {
+                introPanel.classList.add('hidden');
+                form.classList.remove('hidden');
+                lucide.createIcons();
+            });
+
+            // ── Collapsible sections ──
+            document.querySelectorAll('[data-toggle]').forEach(h => {
+                h.addEventListener('click', () => h.closest('.section-card').classList.toggle('collapsed'));
+            });
+
+            // ── Geolocation ──
+            const geoState = {};
+
+            document.querySelectorAll('.geo-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const key = btn.dataset.geo;
+                    const chip = document.querySelector(`[data-geo-chip="${key}"]`);
+
+                    if (!navigator.geolocation) {
+                        setChip(chip, 'fail', 'GPS no soportado');
+                        return;
+                    }
+                    setChip(chip, 'idle', 'Obteniendo…');
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {
+                            geoState[key] = {
+                                lat: pos.coords.latitude,
+                                lng: pos.coords.longitude,
+                                accuracy: pos.coords.accuracy,
+                            };
+                            setChip(chip, 'ok', `±${Math.round(pos.coords.accuracy)}m`);
+                        },
+                        err => {
+                            const msg = err.code === 1 ? 'permiso denegado' : 'no disponible';
+                            setChip(chip, 'fail', msg);
+                        },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                });
+            });
+
+            function setChip(chip, state, text) {
+                chip.className = `geo-chip ${state}`;
+                const icon = state === 'ok' ? 'check' : state === 'fail' ? 'x' : 'loader';
+                chip.innerHTML = `<i data-lucide="${icon}" class="w-3 h-3"></i>${text}`;
+                lucide.createIcons();
+            }
+
+            // ── Medical consent gating ──
+            const medicalCheckbox = document.getElementById('medicalConsent');
+            const medicalFields = document.getElementById('medical-fields');
+            medicalCheckbox.addEventListener('change', () => {
+                if (medicalCheckbox.checked) {
+                    medicalFields.classList.remove('opacity-50', 'pointer-events-none');
+                } else {
+                    medicalFields.classList.add('opacity-50', 'pointer-events-none');
+                    // Clear medical values
+                    medicalFields.querySelectorAll('input, textarea').forEach(i => {
+                        if (i.type === 'checkbox') i.checked = false; else i.value = '';
+                    });
+                }
+            });
+
+            // ── Condiciones médicas pills ──
+            const CONDICIONES = [
+                'Diabetes', 'Hipertensión', 'Cardiovascular', 'Cáncer (historial)',
+                'Problemas renales', 'Enfermedad pulmonar', 'Hepatitis', 'VIH',
+                'Cirugía mayor reciente', 'Obesidad', 'Ansiedad/Depresión', 'Ninguna de las anteriores',
+            ];
+            const pillsContainer = document.getElementById('condiciones-pills');
+            CONDICIONES.forEach((c, i) => {
+                const label = document.createElement('label');
+                label.className = 'pill-choice relative';
+                label.innerHTML = `<input type="checkbox" name="condicion" value="${c}"><span class="pill-ui">${c}</span>`;
+                pillsContainer.appendChild(label);
+            });
+
+            // "Ninguna" clears others
+            pillsContainer.addEventListener('change', (e) => {
+                if (e.target.tagName !== 'INPUT') return;
+                const checkboxes = pillsContainer.querySelectorAll('input');
+                const ninguna = Array.from(checkboxes).find(c => c.value === 'Ninguna de las anteriores');
+                if (e.target === ninguna && e.target.checked) {
+                    checkboxes.forEach(c => { if (c !== ninguna) c.checked = false; });
+                } else if (e.target !== ninguna && e.target.checked && ninguna) {
+                    ninguna.checked = false;
+                }
+            });
+
+            // ── Submit ──
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                errorBanner.classList.add('hidden');
+
+                const submitBtn = document.getElementById('submit-btn');
+                const btnText = submitBtn.querySelector('.btn-text');
+                const spinner = submitBtn.querySelector('.spinner');
+
+                // Build referencias
+                const referencias = [];
+                for (let i = 0; i < 2; i++) {
+                    const ref = {};
+                    document.querySelectorAll(`[data-ref="${i}"]`).forEach(input => {
+                        ref[input.dataset.field] = input.value.trim();
+                    });
+                    if (ref.nombre && ref.telefono) referencias.push(ref);
+                }
+
+                // Build condiciones
+                const condiciones = [];
+                pillsContainer.querySelectorAll('input:checked').forEach(c => condiciones.push(c.value));
+
+                const payload = {
+                    leadId,
+                    empresa: document.getElementById('empresa').value.trim(),
+                    puesto: document.getElementById('puesto').value.trim(),
+                    antiguedadAnios: document.getElementById('antiguedadAnios').value,
+
+                    direccionResidencia: document.getElementById('direccionResidencia').value.trim(),
+                    geoResidencia: geoState.geoResidencia || null,
+                    direccionTrabajo: document.getElementById('direccionTrabajo').value.trim(),
+                    geoTrabajo: geoState.geoTrabajo || null,
+                    direccionInmueble: document.getElementById('direccionInmueble').value.trim(),
+                    geoInmueble: geoState.geoInmueble || null,
+
+                    referencias,
+
+                    medicalConsent: medicalCheckbox.checked,
+                    pesoKg: medicalCheckbox.checked ? document.getElementById('pesoKg').value : '',
+                    estaturaM: medicalCheckbox.checked ? document.getElementById('estaturaM').value : '',
+                    condicionesMedicas: medicalCheckbox.checked ? condiciones : [],
+                    notasMedicas: medicalCheckbox.checked ? document.getElementById('notasMedicas').value.trim() : '',
+                };
+
+                submitBtn.disabled = true;
+                btnText.classList.add('hidden');
+                spinner.classList.remove('hidden');
+
+                try {
+                    const res = await fetch('/api/guardar-expediente', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const result = await res.json();
+                    if (!res.ok || !result.success) {
+                        throw new Error(result.message || 'Error del servidor');
+                    }
+                    form.classList.add('hidden');
+                    successPanel.classList.remove('hidden');
+                    lucide.createIcons();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (err) {
+                    console.error('[EXP] submit failed:', err);
+                    errorText.textContent = err.message || 'No pudimos guardar tu expediente. Intenta de nuevo o contáctanos por WhatsApp.';
+                    errorBanner.classList.remove('hidden');
+                    lucide.createIcons();
+                } finally {
+                    submitBtn.disabled = false;
+                    btnText.classList.remove('hidden');
+                    spinner.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
