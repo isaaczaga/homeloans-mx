@@ -82,12 +82,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    const docRef = await db.collection("solicitudes").add(payload);
-    console.log(`[FORM] Lead creado: ${docRef.id} — ${payload.fullName} (${payload.phone})`);
+    const leadsRef = db.collection("solicitudes");
+    const existingSnap = await leadsRef.where("phone", "==", payload.phone).limit(1).get();
+    let docId;
+
+    if (!existingSnap.empty) {
+      docId = existingSnap.docs[0].id;
+      delete payload.fecha; // no sobreescribir la fecha original
+      delete payload.estado; // no reiniciar estado si ya avanzó
+      payload.ultimaActualizacionWeb = FieldValue.serverTimestamp();
+      await leadsRef.doc(docId).set(payload, { merge: true });
+      console.log(`[FORM] Lead existente actualizado: ${docId} — ${payload.fullName} (${payload.phone})`);
+    } else {
+      const docRef = await leadsRef.add(payload);
+      docId = docRef.id;
+      console.log(`[FORM] Lead creado: ${docId} — ${payload.fullName} (${payload.phone})`);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Solicitud guardada.",
-      docId: docRef.id,
+      docId: docId,
     });
   } catch (e) {
     console.error("[FORM] Firestore write FAIL:", e.code, e.message);

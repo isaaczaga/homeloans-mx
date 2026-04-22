@@ -431,7 +431,11 @@ export default async function handler(req, res) {
   if (alreadyQualified) {
     dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su pre-calificación.
 Tu misión ahora es responder a sus dudas de forma clara, amable y MUY concisa (1-2 oraciones máximo). No vuelvas a pedir sus datos financieros ni hagas las 5 preguntas de perfilamiento.
-${!expedienteDone ? `IMPORTANTE: El prospecto aún no completa su expediente final. Si es natural en la conversación, invítalo a completarlo en este enlace (tarda 3 minutos): ${expedienteLink}` : `Su expediente ya está completo. Dile que un asesor experto lo contactará pronto.`}`;
+${!expedienteDone 
+  ? `IMPORTANTE: El prospecto aún no completa su expediente final. Si es natural en la conversación, invítalo a completarlo en este enlace (tarda 3 minutos): ${expedienteLink}` 
+  : `El prospecto YA completó su expediente inicial en la web y se le ha enviado la lista de documentos requeridos. 
+Tu objetivo ahora es confirmar la recepción de los archivos y resolver sus dudas. 
+REGLA ESTRICTA: Los documentos DEBEN ser enviados en formato PDF. NO aceptamos fotos. Si el cliente pregunta si puede enviar fotos (JPG/PNG), dile amablemente que por lineamientos bancarios de legibilidad, solo podemos aceptar formato PDF.`}`;
   }
 
   let rawReply;

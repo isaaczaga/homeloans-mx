@@ -16,6 +16,17 @@
 
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import twilio from "twilio";
+
+// Normaliza número a formato WhatsApp de Twilio
+function normalizeWhatsAppNumber(phone) {
+  let cleaned = String(phone).trim().replace(/^whatsapp:/i, "");
+  cleaned = cleaned.replace(/\D/g, "");
+  if (cleaned.length === 10) {
+    cleaned = "52" + cleaned; // Asumir México si son 10 dígitos
+  }
+  return "whatsapp:+" + cleaned;
+}
 
 // ── Firebase Admin SDK (singleton) ──────────────────────────
 let db;
@@ -197,6 +208,42 @@ export default async function handler(req, res) {
   try {
     await leadRef.set(expediente, { merge: true });
     console.log(`[EXP] Expediente guardado: ${leadId} — laboral:${tieneLaboral} ubicacion:${tieneUbicacion} refs:${referencias.length} medico:${tieneMedico}`);
+    
+    // Si acaba de completarse, enviar WhatsApp automático pidiendo PDFs
+    if (expediente.expedienteProgreso.completado) {
+      try {
+        const phone = currentLeadData.phone || data.phone;
+        if (phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+          const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+          const toNumber = normalizeWhatsAppNumber(phone);
+          const fromNumber = normalizeWhatsAppNumber(process.env.TWILIO_WHATSAPP_NUMBER);
+          const name = (currentLeadData.fullName || "Estimado cliente").split(" ")[0];
+          
+          const msg = `Hola ${name} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!
+
+Para avanzar con tu crédito hipotecario, por favor envíanos por este medio los siguientes documentos. *SOLO EN FORMATO PDF (NO FOTOS)*:
+- INE o PASAPORTE
+- CSF (constancia de situación fiscal actual)
+- Comprobante de domicilio residencial (actual)
+- Acta de Nacimiento
+- Acta de Matrimonio
+- Últimos 6 estados de cuenta (completos)
+- (Último recibo de nómina, en su caso)
+- Última declaración anual
+- Buró de crédito especial: https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
+
+          await twilioClient.messages.create({
+            from: fromNumber,
+            to: toNumber,
+            body: msg
+          });
+          console.log(`[EXP] WhatsApp automático pidiendo PDFs enviado a ${toNumber}`);
+        }
+      } catch(err) {
+        console.error("[EXP] Error enviando WhatsApp automático:", err.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Expediente guardado correctamente.",
