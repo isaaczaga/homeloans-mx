@@ -185,6 +185,73 @@ function extractLeadData(text) {
   }
 }
 
+// ── Expediente / documentos requeridos ──────────────────────
+// Lista canónica de documentos que componen el expediente hipotecario.
+// Cada item tiene las `classifications` que cuentan como "recibido" si el
+// bot las subió vía el classifier de Claude.
+const REQUIRED_DOCS = [
+  { key: "INE",                  label: "INE vigente (ambos lados)",                classifications: ["INE", "identificacion_otra"] },
+  { key: "comprobante_ingresos", label: "Últimos 3 recibos de nómina o carta patronal", classifications: ["comprobante_ingresos"] },
+  { key: "estado_cuenta",        label: "Últimos 3 estados de cuenta bancarios",    classifications: ["estado_cuenta"] },
+  { key: "comprobante_domicilio",label: "Comprobante de domicilio reciente (CFE, Telmex, agua o predial)", classifications: ["comprobante_domicilio"] },
+  { key: "rfc",                  label: "Constancia de situación fiscal (CSF / RFC)", classifications: ["rfc"] },
+];
+
+// Devuelve un resumen breve en español de los datos que ya tenemos en la
+// solicitud y la lista de documentos que aún faltan. Usado para inyectar
+// contexto al system prompt de Claude y evitar que pregunte datos ya dados.
+function buildSolicitudContext(leadData) {
+  if (!leadData || typeof leadData !== "object") return null;
+
+  const hasLoanBasics =
+    leadData.loanPurpose &&
+    Number(leadData.propertyValue) > 0 &&
+    Number(leadData.monthlyIncome) > 0;
+
+  if (!hasLoanBasics) return null;
+
+  const fmtMxn = (n) =>
+    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(Number(n) || 0);
+
+  const lines = [];
+  if (leadData.fullName && leadData.fullName !== "Lead WhatsApp") lines.push(`Nombre: ${leadData.fullName}`);
+  if (leadData.loanPurpose)  lines.push(`Propósito: ${leadData.loanPurpose === "refinanciamiento" ? "Refinanciamiento" : "Compra"}`);
+  if (leadData.propertyValue) lines.push(`Valor del inmueble: ${fmtMxn(leadData.propertyValue)}`);
+  if (leadData.colonia)       lines.push(`Zona / Colonia: ${leadData.colonia}`);
+  if (leadData.downPayment)   lines.push(`Enganche: ${fmtMxn(leadData.downPayment)}`);
+  if (leadData.monthlyIncome) lines.push(`Ingreso mensual: ${fmtMxn(leadData.monthlyIncome)}`);
+  if (leadData.creditScore)   lines.push(`Historial crediticio: ${leadData.creditScore}`);
+  if (leadData.currentBank)   lines.push(`Banco actual: ${leadData.currentBank}`);
+  if (leadData.currentRate)   lines.push(`Tasa actual: ${leadData.currentRate}%`);
+  if (leadData.currentBalance) lines.push(`Saldo pendiente: ${fmtMxn(leadData.currentBalance)}`);
+
+  // Documentos ya recibidos
+  const docsArr = Array.isArray(leadData.documentos) ? leadData.documentos : [];
+  const receivedClassifications = new Set(
+    docsArr.map((d) => d?.classification).filter(Boolean)
+  );
+
+  const received = [];
+  const missing = [];
+  for (const req of REQUIRED_DOCS) {
+    const hit = req.classifications.some((c) => receivedClassifications.has(c));
+    (hit ? received : missing).push(req.label);
+  }
+
+  // Para refinanciamiento también pedimos la escritura
+  if (leadData.loanPurpose === "refinanciamiento") {
+    const hasEscritura = receivedClassifications.has("escritura");
+    (hasEscritura ? received : missing).push("Escritura pública de la propiedad");
+  }
+
+  return {
+    summary: lines.join("\n"),
+    received,
+    missing,
+    isComplete: missing.length === 0,
+  };
+}
+
 function extFromMime(mime) {
   const m = String(mime || "").toLowerCase();
   if (m.includes("jpeg")) return "jpg";
@@ -530,18 +597,32 @@ export default async function handler(req, res) {
     return sendTwiML(res, "");
   }
 
-  // ── Revisar estado del expediente si ya está calificado ──
+  // ── Revisar estado de la solicitud y del expediente de documentos ──
+  // Cargamos el lead completo si existe para: (a) saber si ya llenó la
+  // solicitud web (tenemos propósito, valor y ingreso → ya está calificado
+  // aunque `qualified` en la sesión esté en false), y (b) construir el
+  // checklist de documentos pendientes.
   let expedienteDone = false;
   let expedienteLink = "";
-  if (alreadyQualified && crmDocId) {
+  let solicitudCtx = null;
+  if (crmDocId) {
     try {
       const leadSnap = await db.collection("solicitudes").doc(crmDocId).get();
       const data = leadSnap.data() || {};
       expedienteDone = !!data.expedienteProgreso?.completado;
       const base = (process.env.PUBLIC_SITE_URL || "https://homeloans.mx").replace(/\/$/, "");
       expedienteLink = `${base}/completar-expediente.html?leadId=${crmDocId}`;
+
+      solicitudCtx = buildSolicitudContext(data);
+      // Si la solicitud web ya trae los datos clave, tratamos al lead como
+      // calificado aunque la sesión no lo marque así todavía. Esto evita
+      // que el bot vuelva a preguntar propósito / valor / ingreso.
+      if (solicitudCtx && !alreadyQualified) {
+        console.log(`[WH] Lead ya calificado vía solicitud web (crmDocId=${crmDocId}). Forzando alreadyQualified=true.`);
+        alreadyQualified = true;
+      }
     } catch (e) {
-      console.error("[WH] no se pudo leer expedienteProgreso:", e.message);
+      console.error("[WH] no se pudo leer solicitud:", e.message);
     }
   }
 
@@ -558,13 +639,39 @@ export default async function handler(req, res) {
 
   let dynamicSystemPrompt = SYSTEM_PROMPT;
   if (alreadyQualified) {
-    dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su pre-calificación.
-Tu misión ahora es responder a sus dudas de forma clara, amable y MUY concisa (1-2 oraciones máximo). No vuelvas a pedir sus datos financieros ni hagas las 5 preguntas de perfilamiento.
-${!expedienteDone
-  ? `IMPORTANTE: El prospecto aún no completa su expediente final. Si es natural en la conversación, invítalo a completarlo en este enlace (tarda 3 minutos): ${expedienteLink}`
-  : `El prospecto YA completó su expediente inicial en la web y se le ha enviado la lista de documentos requeridos.
-Tu objetivo ahora es confirmar la recepción de los archivos y resolver sus dudas.
-REGLA ESTRICTA: Los documentos DEBEN ser enviados en formato PDF. NO aceptamos fotos. Si el cliente pregunta si puede enviar fotos (JPG/PNG), dile amablemente que por lineamientos bancarios de legibilidad, solo podemos aceptar formato PDF.`}`;
+    // Construimos los bloques de contexto dinámicos
+    const datosBlock = solicitudCtx
+      ? `DATOS YA CONFIRMADOS DEL PROSPECTO (NO LOS VUELVAS A PREGUNTAR):
+${solicitudCtx.summary}`
+      : "";
+
+    const docsBlock = solicitudCtx
+      ? (solicitudCtx.isComplete
+          ? `EXPEDIENTE DE DOCUMENTOS: COMPLETO. Ya recibimos todos los documentos requeridos. Si el cliente pregunta qué sigue, dile que el asesor está revisando su expediente y lo contactará en las próximas 24h.`
+          : `EXPEDIENTE DE DOCUMENTOS — PENDIENTE.
+Ya recibidos: ${solicitudCtx.received.length ? solicitudCtx.received.join("; ") : "ninguno todavía"}.
+Faltan: ${solicitudCtx.missing.join("; ")}.
+
+TU OBJETIVO ES RECOLECTAR LOS DOCUMENTOS FALTANTES.
+- Si es el primer mensaje del día, saluda por su nombre (si lo tienes) y confirma que ya vimos su solicitud.
+- Luego pide UN documento a la vez, de forma conversacional y amable. Empieza por el primero de "Faltan".
+- Si el cliente envió un archivo, confírmale que lo recibiste e indica cuál es el siguiente documento pendiente.
+- Acepta PDF, JPG o PNG. Si la foto sale borrosa o cortada, pídela de nuevo amablemente.
+- Para INE, pide explícitamente AMBOS LADOS (frente y reverso).`)
+      : "";
+
+    dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su solicitud de pre-calificación.
+
+${datosBlock}
+
+REGLAS GENERALES:
+- NUNCA vuelvas a preguntar propósito del crédito, valor de la propiedad, enganche, ingreso ni historial crediticio. Ya los tenemos.
+- Sé profesional, amable y MUY conciso (1-2 oraciones máximo).
+- Responde SIEMPRE en español.
+- TASAS: si pregunta, di que arrancan desde 8.95% anual; un rango exacto requiere validar el expediente completo. Nunca menciones porcentajes menores a 8.95%.
+- Máxima edad + plazo = 80 años. Si aplica, avisar amablemente.
+
+${docsBlock}`;
   }
 
   // Si hay mensajes del asesor humano en el historial, advertimos a Claude

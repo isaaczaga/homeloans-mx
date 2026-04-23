@@ -938,8 +938,8 @@ function renderExpedienteSection(lead) {
     };
 
     let html = `<h4 class="text-lg font-semibold border-b pb-2 mt-2 flex items-center gap-2">
-        <i data-lucide="folder-check" class="w-5 h-5 text-emerald-600"></i>
-        Expediente completo
+        <i data-lucide="clipboard-check" class="w-5 h-5 text-emerald-600"></i>
+        Solicitud completa
         <div class="ml-auto flex flex-wrap gap-1">
             ${badge(progreso.laboral, 'Laboral')}
             ${badge(progreso.ubicacion, 'Ubicación')}
@@ -1047,7 +1047,10 @@ function renderDocumentsSection(documentos) {
                 </div>
             </li>`;
     }).join('');
-    return `<h4 class="text-lg font-semibold border-b pb-2 mt-2">Documentos (${docs.length})</h4><ul class="space-y-1 mt-2">${items}</ul>`;
+    return `<h4 class="text-lg font-semibold border-b pb-2 mt-2 flex items-center gap-2">
+        <i data-lucide="folder-check" class="w-5 h-5 text-emerald-600"></i>
+        Expediente · Documentos (${docs.length})
+    </h4><ul class="space-y-1 mt-2">${items}</ul>`;
 }
 
 function openModal(leadData, leadId) {
