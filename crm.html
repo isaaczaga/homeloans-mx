@@ -702,6 +702,11 @@ function candidateSessionIds(phone) {
 function renderChatMessages(messages, leadDocs) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
+    // Si el usuario ya scrolleó hacia arriba, NO lo regresamos al final al
+    // re-renderizar. Solo auto-scrolleamos si estaba cerca del fondo (<50px).
+    const wasNearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 50;
+    const prevScrollTop = container.scrollTop;
+    const prevScrollHeight = container.scrollHeight;
     if (!messages || messages.length === 0) {
         container.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-4">Sin mensajes aún.</p>';
         return;
@@ -746,7 +751,13 @@ function renderChatMessages(messages, leadDocs) {
             </div>`;
     }).join('');
     container.innerHTML = bubbles;
-    container.scrollTop = container.scrollHeight;
+    // Auto-scroll solo si el usuario ya estaba al final (o primera render).
+    if (wasNearBottom || prevScrollHeight === 0) {
+        container.scrollTop = container.scrollHeight;
+    } else {
+        // Preservamos la posición relativa del usuario si scrolleó hacia arriba.
+        container.scrollTop = prevScrollTop;
+    }
 }
 
 let currentSessionId = null;
@@ -814,8 +825,15 @@ async function subscribeToChat(phone, leadId, leadDocs) {
         const data = snap.data();
         renderChatMessages(data.messages || [], currentLeadDocs);
         updatePauseUI(data.agentPausedUntil);
-        // Marcamos como leídos automáticamente (reset de contador)
-        markChatAsRead(sid, leadId).catch(()=>{});
+        // Marcamos como leídos SOLO si hay algo que marcar, para evitar un
+        // loop snapshot → update → snapshot que interfiere con el scroll.
+        const needsMarkSession = (data.unreadCount || 0) > 0;
+        if (needsMarkSession) {
+            markChatAsRead(sid, leadId).catch(()=>{});
+        } else if (leadId) {
+            // Asegurar reset del contador del lead aunque la sesión ya esté en 0
+            markLeadAsRead(leadId).catch(()=>{});
+        }
     }, (err) => {
         console.error("chat snapshot error:", err);
         const c = document.getElementById('chat-messages');
@@ -857,13 +875,15 @@ async function markChatAsRead(sessionId, leadId) {
         // Si el agente no tiene permisos (regla antigua), lo ignoramos.
         if (e.code !== 'permission-denied') console.warn("markChatAsRead session:", e.message);
     }
+    if (leadId) await markLeadAsRead(leadId);
+}
+
+async function markLeadAsRead(leadId) {
     // Lead: reset del contador mostrado en tabla/kanban
-    if (leadId) {
-        try {
-            await updateDoc(doc(db, "solicitudes", leadId), { unreadWhatsapp: 0 });
-        } catch (e) {
-            console.warn("markChatAsRead lead:", e.message);
-        }
+    try {
+        await updateDoc(doc(db, "solicitudes", leadId), { unreadWhatsapp: 0 });
+    } catch (e) {
+        console.warn("markLeadAsRead:", e.message);
     }
 }
 

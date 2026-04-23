@@ -64,14 +64,30 @@ function phoneToDocId(phone) {
   return "wa_" + String(phone || "").replace(/\W/g, "_");
 }
 
-// Normaliza número a formato WhatsApp de Twilio: "whatsapp:+52..."
-// Twilio acepta tanto "521..." como "52..." para móviles mexicanos; usamos
-// el formato canónico "52..." para mantener consistencia con el doc ID.
+// Normaliza número a formato WhatsApp de Twilio: "whatsapp:+..."
+// NO canonicaliza a 12 dígitos — solo asegura el prefijo "whatsapp:+" y
+// agrega "52" a números de 10 dígitos (México). El "1" móvil mexicano
+// se respeta si viene, porque el número remitente provisionado en Twilio
+// puede estar registrado con o sin él; modificarlo causa
+// "Twilio could not find a Channel with the specified From address".
 function normalizeWhatsAppNumber(phone) {
-  const canon = canonicalMxPhone(phone);
-  if (canon) return "whatsapp:+" + canon;
-  const cleaned = String(phone || "").trim().replace(/^whatsapp:/i, "").replace(/\D/g, "");
+  let cleaned = String(phone || "").trim().replace(/^whatsapp:/i, "");
+  cleaned = cleaned.replace(/\D/g, "");
+  if (cleaned.length === 10) cleaned = "52" + cleaned;
   return "whatsapp:+" + cleaned;
+}
+
+// Formatea EXCLUSIVAMENTE el número remitente (TWILIO_WHATSAPP_NUMBER).
+// Respeta 1:1 lo configurado en la variable de entorno: solo garantiza el
+// prefijo "whatsapp:" y el "+". No canonicaliza ni agrega dígitos.
+function formatTwilioSender(raw) {
+  const s = String(raw || "").trim();
+  if (s.toLowerCase().startsWith("whatsapp:")) {
+    const rest = s.slice(9);
+    return "whatsapp:" + (rest.startsWith("+") ? rest : "+" + rest.replace(/^\+?/, ""));
+  }
+  const digits = s.replace(/^\+/, "").replace(/\D/g, "");
+  return "whatsapp:+" + digits;
 }
 
 // ── Handler ─────────────────────────────────────────────────
@@ -140,7 +156,9 @@ export default async function handler(req, res) {
   }
 
   const toNumber = normalizeWhatsAppNumber(phone);
-  const fromNumber = normalizeWhatsAppNumber(process.env.TWILIO_WHATSAPP_NUMBER);
+  // IMPORTANTE: el sender NUNCA se canonicaliza. Twilio requiere que el "from"
+  // coincida 1:1 con el canal provisionado (puede tener "1" móvil o no).
+  const fromNumber = formatTwilioSender(process.env.TWILIO_WHATSAPP_NUMBER);
 
   // ── 3) Enviar vía Twilio ──
   let twilioSid;
