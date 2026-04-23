@@ -166,6 +166,10 @@
                         <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm gap-2">
                             <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
                         </button>
+                        <!-- Backfill de documentos huérfanos (admin) -->
+                        <button id="backfill-docs-btn" title="Recupera documentos de WhatsApp que quedaron sin asociar a un lead" class="bg-white border border-amber-300 text-amber-800 font-semibold px-4 py-2 rounded-lg hover:bg-amber-50 transition flex items-center text-sm gap-2">
+                            <i data-lucide="folder-sync" class="w-4 h-4"></i> Sincronizar documentos
+                        </button>
                     </div>
                 </div>
 
@@ -1538,6 +1542,71 @@ exportCsvBtn.addEventListener('click', () => {
     link.click();
     document.body.removeChild(link);
 });
+
+// ==================== BACKFILL DOCS HUÉRFANOS ====================
+// Llama /api/backfill-docs para reasociar archivos en leads/unclaimed/
+// a sus leads correctos cruzando timestamp con whatsapp_sessions.
+// Procesa un batch de ~8 archivos por invocación (límite de timeout de
+// Vercel); si sobran, re-llamar.
+
+const backfillBtn = document.getElementById('backfill-docs-btn');
+if (backfillBtn) {
+    backfillBtn.addEventListener('click', async () => {
+        if (!auth.currentUser) { alert("Debes iniciar sesión primero."); return; }
+        if (!confirm("¿Sincronizar documentos huérfanos de WhatsApp?\n\nEsto escanea Storage por archivos sin lead asignado y los asocia al cliente correcto cruzando el timestamp con los mensajes del chat.")) return;
+
+        const originalHtml = backfillBtn.innerHTML;
+        backfillBtn.disabled = true;
+        backfillBtn.innerHTML = '<span class="spinner"></span><span class="ml-1">Sincronizando...</span>';
+
+        let totalReassigned = 0;
+        let totalScanned = 0;
+        const allUnmatched = [];
+        const allErrors = [];
+
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            // Loop hasta que remaining=0 o pasen 5 batches (protección)
+            for (let batch = 0; batch < 5; batch++) {
+                const resp = await fetch('/api/backfill-docs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + idToken,
+                    },
+                    body: JSON.stringify({ maxFiles: 8 }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Error ' + resp.status);
+                totalScanned += data.scanned || 0;
+                totalReassigned += data.reassigned || 0;
+                if (Array.isArray(data.unmatched)) allUnmatched.push(...data.unmatched);
+                if (Array.isArray(data.errors)) allErrors.push(...data.errors);
+                if (!data.remaining || data.remaining === 0) break;
+            }
+
+            let summary = `✅ Escaneados: ${totalScanned}\n✅ Reasociados: ${totalReassigned}`;
+            if (allUnmatched.length) summary += `\n⚠️  Sin match: ${allUnmatched.length}`;
+            if (allErrors.length) summary += `\n❌ Errores: ${allErrors.length}`;
+            if (allUnmatched.length) {
+                summary += `\n\nSin match (revisar en Storage):`;
+                allUnmatched.slice(0, 10).forEach(u => {
+                    summary += `\n  • ${u.storagePath} (${u.reason || 'sin razón'})`;
+                });
+                if (allUnmatched.length > 10) summary += `\n  ... y ${allUnmatched.length - 10} más`;
+            }
+            alert(summary);
+            console.log('[BACKFILL] Resultado completo:', { totalScanned, totalReassigned, unmatched: allUnmatched, errors: allErrors });
+        } catch (err) {
+            console.error('[BACKFILL] Falló:', err);
+            alert('Error al sincronizar: ' + (err.message || err));
+        } finally {
+            backfillBtn.disabled = false;
+            backfillBtn.innerHTML = originalHtml;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    });
+}
 </script>
 </body>
 </html>
