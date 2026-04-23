@@ -67,7 +67,18 @@ const SYSTEM_PROMPT = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx en 
 
 Trabajamos EXCLUSIVAMENTE con Santander, Banamex, HSBC, Mifel, Banorte y Scotiabank. NO trabajamos con BBVA. Si el prospecto pregunta por bancos, menciona solo los que sí manejamos.
 
-Tu misión es calificar prospectos haciendo estas 5 preguntas de forma conversacional, una a la vez (nunca todas juntas):
+Tu misión es calificar prospectos haciendo estas preguntas de forma conversacional, una a la vez (nunca todas juntas):
+
+PREGUNTA 0 — Propósito (SIEMPRE la primera):
+  "¿Está buscando financiamiento para comprar una propiedad, o desea refinanciar/mejorar condiciones de un crédito que ya tiene?"
+  - Si es COMPRA → flujo estándar (preguntas 1-5).
+  - Si es REFINANCIAMIENTO → pregunta adicionalmente:
+      A) ¿Con qué banco tiene el crédito actual?
+      B) ¿Cuál es la tasa que paga actualmente?
+      C) ¿Cuál es el saldo pendiente aproximado?
+    Luego continúa con preguntas 1, 2, 4 y 5 (el enganche no aplica en refi).
+
+Preguntas estándar (compra):
 1. Valor aproximado de la propiedad que busca
 2. Colonia o zona de interés
 3. Enganche disponible (monto en pesos)
@@ -82,10 +93,15 @@ Reglas estrictas:
 - Si el prospecto pregunta algo fuera de tema, redirige amablemente hacia la calificación.
 - Cuando tengas los 5 datos, agradece y dile que un asesor lo contactará en menos de 24 horas.
 
-INSTRUCCIÓN ESPECIAL — cuando hayas recopilado los 5 datos, incluye AL FINAL de tu respuesta, en una línea separada, el siguiente bloque (el usuario nunca lo verá):
-LEAD_DATA:{"propertyValue":NUMERO_SIN_COMAS,"colonia":"TEXTO","downPayment":NUMERO_SIN_COMAS,"monthlyIncome":NUMERO_SIN_COMAS,"creditScore":"TEXTO"}
+INSTRUCCIÓN ESPECIAL — cuando hayas recopilado todos los datos necesarios según el propósito, incluye AL FINAL de tu respuesta, en una línea separada, el siguiente bloque (el usuario nunca lo verá):
 
-Solo incluye LEAD_DATA cuando tengas los 5 valores confirmados.`;
+Para COMPRA:
+LEAD_DATA:{"loanPurpose":"compra","propertyValue":NUMERO_SIN_COMAS,"colonia":"TEXTO","downPayment":NUMERO_SIN_COMAS,"monthlyIncome":NUMERO_SIN_COMAS,"creditScore":"TEXTO"}
+
+Para REFINANCIAMIENTO:
+LEAD_DATA:{"loanPurpose":"refinanciamiento","propertyValue":NUMERO_SIN_COMAS,"colonia":"TEXTO","downPayment":0,"monthlyIncome":NUMERO_SIN_COMAS,"creditScore":"TEXTO","currentBank":"NOMBRE_BANCO","currentRate":NUMERO_DECIMAL,"currentBalance":NUMERO_SIN_COMAS}
+
+Solo incluye LEAD_DATA cuando tengas todos los valores confirmados para el tipo de operación.`;
 
 const MAX_HISTORY = 20;
 const CLASSIFY_PROMPT = `Analiza este documento mexicano relacionado con un trámite hipotecario. Clasifícalo en una de estas categorías:
@@ -463,10 +479,11 @@ REGLA ESTRICTA: Los documentos DEBEN ser enviados en formato PDF. NO aceptamos f
   if (leadData) {
     try {
       const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
+      const isRefi = leadData.loanPurpose === "refinanciamiento";
       const fullLeadData = {
         fullName: "Lead WhatsApp",
         phone,
-        loanPurpose: "compra",
+        loanPurpose: isRefi ? "refinanciamiento" : "compra",
         propertyValue: Number(leadData.propertyValue) || 0,
         downPayment: Number(leadData.downPayment) || 0,
         monthlyIncome: Number(leadData.monthlyIncome) || 0,
@@ -474,6 +491,12 @@ REGLA ESTRICTA: Los documentos DEBEN ser enviados en formato PDF. NO aceptamos f
         colonia: leadData.colonia || "",
         source: "whatsapp_chatbot",
         calificadoEn: FieldValue.serverTimestamp(),
+        // Campos exclusivos de refinanciamiento
+        ...(isRefi && {
+          currentBank: leadData.currentBank || "",
+          currentRate: Number(leadData.currentRate) || 0,
+          currentBalance: Number(leadData.currentBalance) || 0,
+        }),
       };
 
       if (crmDocId) {

@@ -829,22 +829,50 @@ function openModal(leadData, leadId) {
     const score = calculateScore(leadData);
     const notes = leadData.notas || [];
 
+    const isRefi = leadData.loanPurpose === 'refinanciamiento';
+
     const detailsOrder = {
         'Información de Contacto': ['fullName', 'email', 'phone'],
         'Perfil Financiero': ['monthlyIncome', 'creditScore'],
-        'Detalles del Crédito': ['loanPurpose', 'propertyValue', 'downPayment', 'currentBalance', 'currentInterestRate', 'currentBank']
+        'Detalles del Crédito': isRefi
+            ? ['loanPurpose', 'propertyValue', 'colonia', 'currentBank', 'currentRate', 'currentBalance']
+            : ['loanPurpose', 'propertyValue', 'colonia', 'downPayment']
+    };
+
+    const fieldLabels = {
+        fullName: 'Nombre', email: 'Email', phone: 'Teléfono',
+        monthlyIncome: 'Ingreso Mensual', creditScore: 'Historial Crediticio',
+        loanPurpose: 'Propósito', propertyValue: 'Valor de la Propiedad',
+        colonia: 'Zona / Colonia', downPayment: 'Enganche',
+        currentBank: 'Banco Actual', currentRate: 'Tasa Actual (%)', currentBalance: 'Saldo Pendiente',
     };
 
     let html = '<div class="space-y-4">';
+
+    // Alerta visual si es refinanciamiento
+    if (isRefi && leadData.currentRate) {
+        const saving = (Number(leadData.currentRate) - 8.95).toFixed(2);
+        html += `<div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
+            <span class="text-blue-600 text-xl">🔄</span>
+            <div>
+                <p class="font-semibold text-blue-800">Oportunidad de refinanciamiento</p>
+                <p class="text-sm text-blue-700">Paga <strong>${leadData.currentRate}%</strong> con <strong>${leadData.currentBank || 'banco actual'}</strong>.
+                ${saving > 0 ? `Ahorro potencial: <strong>${saving} pts</strong> vs tasa mínima actual (8.95%).` : ''}
+                ${leadData.currentBalance ? `Saldo pendiente: <strong>${formatCurrency(leadData.currentBalance)}</strong>.` : ''}</p>
+            </div>
+        </div>`;
+    }
 
     // Data sections
     for (const section in detailsOrder) {
         html += `<h4 class="text-lg font-semibold border-b pb-2">${section}</h4><dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">`;
         detailsOrder[section].forEach(key => {
-            if (leadData[key]) {
+            if (leadData[key] !== undefined && leadData[key] !== '') {
                 let val = leadData[key];
                 if (['monthlyIncome','propertyValue','downPayment','currentBalance'].includes(key)) val = formatCurrency(val);
-                const label = key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
+                if (key === 'currentRate') val = val + '% anual';
+                if (key === 'loanPurpose') val = val === 'refinanciamiento' ? '🔄 Refinanciamiento' : '🏠 Compra';
+                const label = fieldLabels[key] || key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase());
                 html += `<div class="py-1"><dt class="text-sm font-medium text-gray-500">${label}</dt><dd class="text-gray-900">${val}</dd></div>`;
             }
         });
