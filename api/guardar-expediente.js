@@ -17,6 +17,7 @@
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import twilio from "twilio";
+import { signPortalToken } from "./generar-link-portal.js";
 
 // Normaliza número a formato WhatsApp de Twilio
 function normalizeWhatsAppNumber(phone) {
@@ -232,6 +233,20 @@ export default async function handler(req, res) {
         const fromNumber = normalizeWhatsAppNumber(process.env.TWILIO_WHATSAPP_NUMBER);
         const name = (currentLeadData.fullName || "Estimado cliente").split(" ")[0];
 
+        // Genera el link del portal del cliente (48 h) para que pueda subir
+        // los documentos desde la web si prefiere no hacerlo por WhatsApp.
+        // Si falla la firma (p.ej. falta PORTAL_JWT_SECRET), seguimos sin el link.
+        let portalLink = "";
+        try {
+          portalLink = signPortalToken(leadId).url;
+        } catch (e) {
+          console.warn("[EXP] No se pudo firmar portal link:", e.message);
+        }
+
+        const portalLine = portalLink
+          ? `\n\n📱 *Mi Portal* (alternativa a WhatsApp, subir PDFs desde la web — válido 48 h):\n${portalLink}`
+          : "";
+
         const freeformBody = `Hola ${name} - hemos recibido tu información - revisaremos tu solicitud y estaremos en contacto contigo muy pronto, ¡gracias por elegirnos!
 
 Para avanzar con tu crédito hipotecario, por favor envíanos por este medio los siguientes documentos. *SOLO EN FORMATO PDF (NO FOTOS)*:
@@ -243,7 +258,7 @@ Para avanzar con tu crédito hipotecario, por favor envíanos por este medio los
 - Últimos 6 estados de cuenta (completos)
 - (Último recibo de nómina, en su caso)
 - Última declaración anual
-- Buró de crédito especial: https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6`;
+- Buró de crédito especial: https://wbc3.burodecredito.com.mx:7442/idprovider/pages/autorizacion.jsf?gatm=6${portalLine}`;
 
         try {
           await twilioClient.messages.create({
