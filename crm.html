@@ -1064,6 +1064,9 @@ function renderDocumentsSection(documentos) {
             ? `<img src="${d.url}" alt="${label}" class="w-16 h-16 object-cover rounded-md border border-gray-200 flex-shrink-0">`
             : `<div class="w-16 h-16 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center flex-shrink-0"><i data-lucide="file-text" class="w-7 h-7 text-gray-500"></i></div>`;
         const when = d.uploadedAt ? new Date(d.uploadedAt).toLocaleString('es-MX', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+        // El filename se usa para el atributo `download` al descargar. Lo escapamos para
+        // que las comillas simples/dobles no rompan el HTML inline del data-attr.
+        const safeFilename = String(d.filename || `${label.replace(/\s+/g,'_')}_${i+1}`).replace(/"/g, '&quot;');
         return `
             <li class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
                 ${preview}
@@ -1073,9 +1076,17 @@ function renderDocumentsSection(documentos) {
                         ${when ? `<span class="text-[11px] text-gray-400">${when}</span>` : ''}
                     </div>
                     ${d.summary ? `<p class="text-xs text-gray-600 mb-1">${d.summary}</p>` : ''}
-                    <a href="${d.url}" target="_blank" class="text-xs text-emerald-600 hover:underline inline-flex items-center gap-1">
-                        <i data-lucide="external-link" class="w-3 h-3"></i> Abrir ${d.filename || 'archivo'}
-                    </a>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="${d.url}" target="_blank" rel="noopener" class="text-xs text-emerald-600 hover:underline inline-flex items-center gap-1">
+                            <i data-lucide="external-link" class="w-3 h-3"></i> Abrir
+                        </a>
+                        <button type="button"
+                                class="download-doc-btn text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                                data-url="${d.url}" data-filename="${safeFilename}">
+                            <i data-lucide="download" class="w-3 h-3"></i> Descargar
+                        </button>
+                        <span class="text-[11px] text-gray-400 truncate">${d.filename || 'archivo'}</span>
+                    </div>
                 </div>
             </li>`;
     }).join('');
@@ -1331,6 +1342,43 @@ async function sendWhatsAppFromCRM(phone, message, leadId, pauseBot = false) {
 modalBody.addEventListener('click', async (e) => {
     const leadId = modalBody.dataset.leadId;
     if (!leadId) return;
+
+    // Descargar documento del expediente. Usamos fetch + Blob para forzar
+    // la descarga aunque el navegador quiera mostrar el PDF inline; si falla
+    // por cualquier razón (p.ej. CORS en algún entorno exótico), caemos a
+    // abrir la URL firmada en una pestaña nueva.
+    const dlBtn = e.target.closest('.download-doc-btn');
+    if (dlBtn) {
+        const url = dlBtn.dataset.url;
+        const filename = dlBtn.dataset.filename || 'documento';
+        if (!url) return;
+        const originalHtml = dlBtn.innerHTML;
+        dlBtn.innerHTML = '<span class="spinner"></span><span class="ml-1">Descargando...</span>';
+        dlBtn.disabled = true;
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 200);
+        } catch (err) {
+            console.error('download fail, fallback to open:', err);
+            window.open(url, '_blank', 'noopener');
+        } finally {
+            dlBtn.innerHTML = originalHtml;
+            dlBtn.disabled = false;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        return;
+    }
 
     // Chat: plantilla rápida
     const tplBtn = e.target.closest('.chat-template');

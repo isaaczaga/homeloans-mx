@@ -567,14 +567,20 @@ export default async function handler(req, res) {
 
   const botPaused = agentPausedUntil && agentPausedUntil > new Date();
 
-  // ── PASO 1b: Primer mensaje — enlazar a solicitud existente o crear lead ──
+  // ── PASO 1b: Enlazar chat a una solicitud por teléfono ──
   // CRÍTICO: el form web puede guardar el teléfono en múltiples formatos
   // (10 dígitos, 12 con "52", con "+52", con "1" móvil, etc). Intentamos
   // TODAS las variantes plausibles antes de crear un duplicado. Si por alguna
   // razón ninguna variante exacta matchea (p.ej. el form guardó con guiones),
   // escaneamos como fallback los últimos leads y canonicalizamos en memoria.
-  const isFirstMessage = messages.length === 0 && !crmDocId;
-  if (isFirstMessage) {
+  //
+  // IMPORTANTE: este bloque se ejecuta SIEMPRE que `crmDocId` esté vacío,
+  // no solo en el primer mensaje. Sesiones viejas creadas antes de este
+  // matching quedaron sin `crmDocId`; entonces los documentos PDF/imágenes
+  // que el cliente enviaba se subían a Storage pero no se adjuntaban al
+  // lead en Firestore — y por eso el CRM no los mostraba. Al re-intentar
+  // el match en cada mensaje, recuperamos esos casos retroactivamente.
+  if (!crmDocId) {
     try {
       const variants = phoneSearchVariants(fromNumber);
       const canonFrom = canonicalMxPhone(fromNumber);
@@ -624,6 +630,17 @@ export default async function handler(req, res) {
         });
         crmDocId = docRef.id;
         console.log(`[WH] PASO 1b OK — Lead inicial creado (no match por tel): ${crmDocId}`);
+      }
+
+      // Persistimos crmDocId a la sesión de inmediato para que no repitamos
+      // el lookup en cada mensaje futuro. Usamos `merge: true` para no pisar
+      // nada más del documento.
+      if (crmDocId) {
+        try {
+          await sessionRef.set({ crmDocId, phone: fromNumber }, { merge: true });
+        } catch (e) {
+          console.error("[WH] PASO 1b — no se pudo persistir crmDocId en sesión:", e.message);
+        }
       }
     } catch (e) {
       console.error("[WH] PASO 1b FAIL:", e.code, e.message, e.stack);
