@@ -36,8 +36,8 @@ try {
           privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
         }),
         storageBucket:
-          process.env.FIREBASE_STORAGE_BUCKET ||
-          `${process.env.FIREBASE_ADMIN_PROJECT_ID}.appspot.com`,
+          process.env.FIREBASE_ADMIN_STORAGE_BUCKET ||
+          process.env.FIREBASE_STORAGE_BUCKET,
       });
   db = getFirestore(app);
   bucket = getStorage(app).bucket();
