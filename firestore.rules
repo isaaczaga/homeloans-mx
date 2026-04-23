@@ -19,10 +19,16 @@ service cloud.firestore {
 
     // ── whatsapp_sessions: historial del chatbot ────────────────
     // Los agentes necesitan leer la conversación en el CRM.
-    // Las escrituras las hace exclusivamente el servidor (Admin SDK).
+    // Escrituras: exclusivamente el servidor (Admin SDK).
+    // EXCEPCIÓN: agentes autenticados pueden modificar SOLO los campos de
+    // control (pausa/reactivación del bot, contadores de mensajes leídos)
+    // sin poder tocar el historial `messages`.
     match /whatsapp_sessions/{docId} {
-      allow read:  if request.auth != null;
-      allow write: if false;
+      allow read: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['agentPausedUntil', 'unreadCount', 'lastReadAt', 'lastReadBy']);
+      allow create, delete: if false;
     }
 
     // ── Denegar todo lo demás por defecto ───────────────────────

@@ -278,13 +278,26 @@ export default async function handler(req, res) {
   let agentPausedUntil = null;
   const sessionRef = db.collection("whatsapp_sessions").doc(phoneToDocId(fromNumber));
 
+  let rawMessages = [];
   try {
     const snap = await sessionRef.get();
     if (snap.exists) {
       const d = snap.data();
-      messages = (d.messages || []).filter(
-        (m) => m && m.role && (m.role === "user" || m.role === "assistant")
+      rawMessages = (d.messages || []).filter(
+        (m) => m && m.role && (m.role === "user" || m.role === "assistant" || m.role === "agent")
       );
+      // Para Claude: mapeamos los mensajes del agente a "assistant" con prefijo
+      // identificador, para que el bot tenga contexto completo y no se contradiga
+      // ni repita lo que el asesor humano ya dijo.
+      messages = rawMessages.map((m) => {
+        if (m.role === "agent") {
+          return {
+            role: "assistant",
+            content: `[MENSAJE DEL ASESOR HUMANO]: ${m.content}`,
+          };
+        }
+        return { role: m.role, content: m.content };
+      });
       alreadyQualified = d.qualified || false;
       crmDocId = d.crmDocId || null;
       agentPausedUntil = d.agentPausedUntil?.toDate
@@ -390,23 +403,43 @@ export default async function handler(req, res) {
   }
 
   // ── PASO 3: Decidir respuesta ──
-  // Si el bot está pausado (agente tomó control), solo registramos el mensaje sin responder via Claude.
+  // Si el bot está pausado (agente tomó control explícitamente), solo registramos el mensaje sin responder via Claude.
   if (botPaused) {
     if (incomingMessage) {
-      messages.push({ role: "user", content: incomingMessage });
-    }
-    try {
-      await sessionRef.set(
-        {
-          messages: messages.slice(-MAX_HISTORY),
-          lastActivity: FieldValue.serverTimestamp(),
-          phone: fromNumber,
-          ...(crmDocId && { crmDocId }),
-        },
-        { merge: true }
-      );
-    } catch (e) {
-      console.error("[WH] paused session write FAIL:", e.message);
+      // Usamos arrayUnion para NO sobrescribir mensajes del agente que
+      // puedan haber llegado en paralelo desde send-whatsapp.js.
+      const userMsg = {
+        role: "user",
+        content: incomingMessage,
+        at: new Date().toISOString(),
+      };
+      try {
+        await sessionRef.set(
+          {
+            messages: FieldValue.arrayUnion(userMsg),
+            lastActivity: FieldValue.serverTimestamp(),
+            lastInboundAt: FieldValue.serverTimestamp(),
+            unreadCount: FieldValue.increment(1),
+            phone: fromNumber,
+            ...(crmDocId && { crmDocId }),
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.error("[WH] paused session write FAIL:", e.message);
+      }
+      // También actualizamos el lead para el contador de no-leídos del CRM
+      if (crmDocId) {
+        try {
+          await db.collection("solicitudes").doc(crmDocId).set(
+            {
+              unreadWhatsapp: FieldValue.increment(1),
+              lastInboundAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch {}
+      }
     }
     console.log("[WH] Bot pausado — sin respuesta automática");
     // Si llegaron docs, igual mandamos un acuse corto
@@ -447,11 +480,24 @@ export default async function handler(req, res) {
   if (alreadyQualified) {
     dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su pre-calificación.
 Tu misión ahora es responder a sus dudas de forma clara, amable y MUY concisa (1-2 oraciones máximo). No vuelvas a pedir sus datos financieros ni hagas las 5 preguntas de perfilamiento.
-${!expedienteDone 
-  ? `IMPORTANTE: El prospecto aún no completa su expediente final. Si es natural en la conversación, invítalo a completarlo en este enlace (tarda 3 minutos): ${expedienteLink}` 
-  : `El prospecto YA completó su expediente inicial en la web y se le ha enviado la lista de documentos requeridos. 
-Tu objetivo ahora es confirmar la recepción de los archivos y resolver sus dudas. 
+${!expedienteDone
+  ? `IMPORTANTE: El prospecto aún no completa su expediente final. Si es natural en la conversación, invítalo a completarlo en este enlace (tarda 3 minutos): ${expedienteLink}`
+  : `El prospecto YA completó su expediente inicial en la web y se le ha enviado la lista de documentos requeridos.
+Tu objetivo ahora es confirmar la recepción de los archivos y resolver sus dudas.
 REGLA ESTRICTA: Los documentos DEBEN ser enviados en formato PDF. NO aceptamos fotos. Si el cliente pregunta si puede enviar fotos (JPG/PNG), dile amablemente que por lineamientos bancarios de legibilidad, solo podemos aceptar formato PDF.`}`;
+  }
+
+  // Si hay mensajes del asesor humano en el historial, advertimos a Claude
+  // para que complemente en lugar de contradecir o repetir.
+  const hasAgentMessages = rawMessages.some((m) => m.role === "agent");
+  if (hasAgentMessages) {
+    dynamicSystemPrompt += `
+
+CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor humano del equipo HomeLoans.mx. Sus mensajes aparecen marcados como "[MENSAJE DEL ASESOR HUMANO]".
+- NO repitas información que el asesor ya dio.
+- Complementa cuando sea natural.
+- Si el asesor ya prometió algo específico (una llamada, revisar algo manualmente), NO ofrezcas alternativas: confía y reitera que el asesor le dará seguimiento.
+- Mantén consistencia con lo que el asesor dijo.`;
   }
 
   let rawReply;
@@ -539,22 +585,58 @@ REGLA ESTRICTA: Los documentos DEBEN ser enviados en formato PDF. NO aceptamos f
   }
 
   // ── PASO 6: Persistir sesión ──
+  // Usamos arrayUnion para NO destruir los mensajes del agente que
+  // hayan podido escribirse en paralelo desde el CRM.
   try {
-    messages.push({ role: "assistant", content: reply });
-    const trimmed = messages.slice(-MAX_HISTORY);
-    await sessionRef.set(
-      {
-        messages: trimmed,
-        lastActivity: FieldValue.serverTimestamp(),
-        qualified: isNowQualified || alreadyQualified,
-        phone: fromNumber,
-        ...(crmDocId && { crmDocId }),
-      },
-      { merge: true }
-    );
-    console.log(`[WH] PASO 6 OK — Sesión guardada (${trimmed.length} msgs)`);
+    const now = new Date().toISOString();
+    const newMessages = [];
+    if (userMsgForClaude) {
+      newMessages.push({ role: "user", content: userMsgForClaude, at: now });
+    }
+    if (reply) {
+      newMessages.push({ role: "assistant", content: reply, at: new Date().toISOString() });
+    }
+
+    const sessionUpdate = {
+      lastActivity: FieldValue.serverTimestamp(),
+      lastInboundAt: FieldValue.serverTimestamp(),
+      qualified: isNowQualified || alreadyQualified,
+      phone: fromNumber,
+      ...(crmDocId && { crmDocId }),
+    };
+    if (newMessages.length > 0) {
+      sessionUpdate.messages = FieldValue.arrayUnion(...newMessages);
+    }
+    if (incomingMessage) {
+      sessionUpdate.unreadCount = FieldValue.increment(1);
+    }
+
+    // Si el historial ya supera 2x MAX_HISTORY lo "re-compactamos" a MAX_HISTORY.
+    // Leemos de nuevo para obtener los mensajes del agente que pudieron llegar.
+    const freshSnap = await sessionRef.get();
+    const currentMsgs = freshSnap.exists ? (freshSnap.data().messages || []) : [];
+    if (currentMsgs.length + newMessages.length > MAX_HISTORY * 2) {
+      const combined = [...currentMsgs, ...newMessages].slice(-MAX_HISTORY);
+      sessionUpdate.messages = combined; // reemplazo controlado
+    }
+
+    await sessionRef.set(sessionUpdate, { merge: true });
+    console.log(`[WH] PASO 6 OK — Sesión guardada (+${newMessages.length} msgs nuevos)`);
   } catch (e) {
     console.error("[WH] PASO 6 FAIL:", e.code, e.message);
+  }
+
+  // Actualizar contador de mensajes no leídos en el lead (para el CRM)
+  if (crmDocId && incomingMessage) {
+    try {
+      await db.collection("solicitudes").doc(crmDocId).set(
+        {
+          unreadWhatsapp: FieldValue.increment(1),
+          lastInboundAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch {}
   }
 
   return sendTwiML(res, finalReply);

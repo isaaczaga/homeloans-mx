@@ -22,6 +22,26 @@
         .kanban-card.dragging { opacity: 0.4; }
         .kanban-card { cursor: grab; }
         .kanban-card:active { cursor: grabbing; }
+        /* Chat */
+        .chat-unread-dot {
+            display: inline-block;
+            min-width: 18px; height: 18px; padding: 0 5px;
+            border-radius: 9px;
+            background: #ef4444; color: white;
+            font-size: 10px; font-weight: 700;
+            line-height: 18px; text-align: center;
+        }
+        .chat-bubble-user     { background:#f3f4f6; color:#111827; border:1px solid #e5e7eb; border-top-left-radius:4px; }
+        .chat-bubble-agent    { background:#059669; color:white;   border-top-right-radius:4px; }
+        .chat-bubble-bot      { background:#DBEAFE; color:#1E3A8A; border-top-right-radius:4px; }
+        .chat-attachment      { max-width: 180px; max-height: 180px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top:4px; }
+        /* Toggle switch */
+        .toggle-switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background:#d1d5db; border-radius: 20px; transition: .2s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .2s; }
+        .toggle-switch input:checked + .toggle-slider { background: #f59e0b; }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(16px); }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -90,10 +110,14 @@
 
         <!-- DASHBOARD STATS -->
         <div class="bg-white border-b border-gray-200">
-            <div class="container mx-auto px-6 py-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="container mx-auto px-6 py-5 grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Leads este mes</p>
                     <p id="stat-total-month" class="text-3xl font-bold text-gray-900 mt-1">—</p>
+                </div>
+                <div class="bg-red-50 rounded-xl p-4 border border-red-100 cursor-pointer hover:bg-red-100 transition" id="stat-unread-card" title="Haz clic para filtrar">
+                    <p class="text-xs font-semibold text-red-600 uppercase tracking-wider">WhatsApp sin leer</p>
+                    <p id="stat-unread" class="text-3xl font-bold text-red-700 mt-1">—</p>
                 </div>
                 <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
                     <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Score 7+ (Calificados)</p>
@@ -194,7 +218,7 @@
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc, getDoc, updateDoc, deleteDoc, arrayUnion, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, where, limit, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCk2DYbfg05KcROpP3wKZ7mpqgJwVMhw1E",
@@ -462,30 +486,54 @@ function updateStats() {
     const pipeline = allLeads.reduce((s, l) => s + (l.propertyValue || 0), 0);
     const converted = allLeads.filter(l => l.estado === 'Cliente Logrado').length;
     const rate = allLeads.length > 0 ? ((converted / allLeads.length) * 100).toFixed(1) : 0;
+    const unreadLeadCount = allLeads.filter(l => Number(l.unreadWhatsapp || 0) > 0).length;
 
     document.getElementById('stat-total-month').textContent = thisMonth.length;
     document.getElementById('stat-qualified').textContent = qualified.length;
     document.getElementById('stat-pipeline').textContent = formatCurrencyCompact(pipeline);
     document.getElementById('stat-conversion').textContent = rate + '%';
+    const unreadEl = document.getElementById('stat-unread');
+    if (unreadEl) unreadEl.textContent = unreadLeadCount;
 }
+
+// Click en card "WhatsApp sin leer" → filtra leads con mensajes pendientes
+let showOnlyUnread = false;
+document.addEventListener('click', (e) => {
+    const card = e.target.closest('#stat-unread-card');
+    if (!card) return;
+    showOnlyUnread = !showOnlyUnread;
+    card.classList.toggle('ring-2');
+    card.classList.toggle('ring-red-500');
+    renderTable();
+    if (currentView === 'kanban') renderKanban();
+});
 
 // ==================== TABLE ====================
 
 function renderTable() {
     const filter = statusFilter.value;
-    const leads = filter === 'Todos' ? allLeads : allLeads.filter(l => (l.estado || 'Recibida') === filter);
+    let leads = filter === 'Todos' ? allLeads : allLeads.filter(l => (l.estado || 'Recibida') === filter);
+    if (showOnlyUnread) leads = leads.filter(l => Number(l.unreadWhatsapp || 0) > 0);
     tableBody.innerHTML = '';
     if (leads.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-gray-400">No hay solicitudes con este estado.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-gray-400">${showOnlyUnread ? 'Sin mensajes de WhatsApp pendientes.' : 'No hay solicitudes con este estado.'}</td></tr>`;
         return;
     }
     leads.forEach(lead => {
         const score = calculateScore(lead);
+        const unread = Number(lead.unreadWhatsapp || 0);
+        const isBotPaused = lead.agentPausedUntil &&
+            (lead.agentPausedUntil.toDate ? lead.agentPausedUntil.toDate() : new Date(lead.agentPausedUntil)) > new Date();
+        const nameBadges = [];
+        if (unread > 0) nameBadges.push(`<span class="chat-unread-dot" title="${unread} mensaje(s) sin leer">${unread > 9 ? '9+' : unread}</span>`);
+        if (isBotPaused) nameBadges.push(`<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full" title="Bot pausado">⏸️ bot</span>`);
         const row = document.createElement('tr');
-        row.className = 'bg-white border-b hover:bg-gray-50';
+        row.className = 'bg-white border-b hover:bg-gray-50' + (unread > 0 ? ' bg-emerald-50/30' : '');
         row.innerHTML = `
             <td class="px-5 py-4 whitespace-nowrap">${lead.fecha ? lead.fecha.toDate().toLocaleDateString('es-MX') : 'N/A'}</td>
-            <td class="px-5 py-4 font-medium text-gray-900 whitespace-nowrap">${lead.fullName}</td>
+            <td class="px-5 py-4 font-medium text-gray-900 whitespace-nowrap">
+                <div class="flex items-center gap-2">${lead.fullName}${nameBadges.length ? `<div class="flex gap-1">${nameBadges.join('')}</div>` : ''}</div>
+            </td>
             <td class="px-5 py-4">${scoreBadge(score)}</td>
             <td class="px-5 py-4">${formatCurrency(lead.monthlyIncome || 0)}</td>
             <td class="px-5 py-4">${formatCurrency(lead.propertyValue || 0)}</td>
@@ -527,8 +575,9 @@ function normalizeEstado(estado) {
 
 function renderKanban() {
     kanbanBoard.innerHTML = '';
+    const baseLeads = showOnlyUnread ? allLeads.filter(l => Number(l.unreadWhatsapp || 0) > 0) : allLeads;
     KANBAN_COLUMNS.forEach(col => {
-        const colLeads = allLeads.filter(l => normalizeEstado(l.estado) === col.id);
+        const colLeads = baseLeads.filter(l => normalizeEstado(l.estado) === col.id);
         const colEl = document.createElement('div');
         colEl.className = `kanban-column rounded-xl border border-gray-200 ${col.colCls}`;
         colEl.dataset.status = col.id;
@@ -579,12 +628,21 @@ function renderKanban() {
 function kanbanCard(lead) {
     const score = calculateScore(lead);
     const fuBadge = followUpBadge(lead);
+    const unread = Number(lead.unreadWhatsapp || 0);
+    const isBotPaused = lead.agentPausedUntil &&
+        (lead.agentPausedUntil.toDate ? lead.agentPausedUntil.toDate() : new Date(lead.agentPausedUntil)) > new Date();
+    const badgeBar = [
+        unread > 0 ? `<span class="chat-unread-dot" title="${unread} sin leer">${unread > 9 ? '9+' : unread}</span>` : '',
+        isBotPaused ? `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full" title="Bot pausado">⏸️ bot</span>` : '',
+    ].filter(Boolean).join('');
+    const cardHighlight = unread > 0 ? 'ring-2 ring-emerald-400' : '';
     return `
-        <div class="kanban-card bg-white rounded-lg shadow-sm p-3 border border-gray-100" draggable="true" data-id="${lead.id}">
+        <div class="kanban-card bg-white rounded-lg shadow-sm p-3 border border-gray-100 ${cardHighlight}" draggable="true" data-id="${lead.id}">
             <div class="flex items-start justify-between gap-1 mb-1">
                 <span class="font-semibold text-sm text-gray-900 leading-tight">${lead.fullName}</span>
                 ${scoreBadge(score)}
             </div>
+            ${badgeBar ? `<div class="flex items-center gap-1 mb-1">${badgeBar}</div>` : ''}
             <p class="text-xs text-gray-500 mb-0.5">${lead.loanPurpose || ''}</p>
             <p class="text-xs font-medium text-gray-700">${formatCurrency(lead.propertyValue || 0)}</p>
             ${fuBadge ? `<div class="mt-1.5">${fuBadge}</div>` : ''}
@@ -614,65 +672,167 @@ function sessionIdFromPhone(phone) {
     return "wa_whatsapp__" + digits;
 }
 
-function renderChatMessages(messages) {
+function renderChatMessages(messages, leadDocs) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
     if (!messages || messages.length === 0) {
         container.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-4">Sin mensajes aún.</p>';
         return;
     }
-    const bubbles = messages.map(m => {
+    // Indexamos los documentos de WhatsApp por timestamp cercano al mensaje del usuario
+    // para renderizar miniaturas dentro del chat.
+    const wsDocs = (Array.isArray(leadDocs) ? leadDocs : [])
+        .filter(d => d.source === 'whatsapp' && d.url)
+        .map(d => ({ ...d, ts: d.uploadedAt ? new Date(d.uploadedAt).getTime() : 0 }));
+
+    const bubbles = messages.map((m, idx) => {
         const isUser = m.role === 'user';
         const isAgent = m.role === 'agent';
         const isBot = m.role === 'assistant';
-        const bubbleClass = isUser
-            ? 'bg-gray-100 text-gray-900 self-start'
-            : isAgent
-                ? 'bg-emerald-600 text-white self-end'
-                : 'bg-blue-100 text-blue-900 self-end';
-        const label = isUser ? 'Cliente' : isAgent ? `Tú${m.agentEmail ? ' · ' + m.agentEmail : ''}` : 'Isaac (bot)';
+        const bubbleClass = isUser ? 'chat-bubble-user self-start'
+            : isAgent ? 'chat-bubble-agent self-end'
+            : 'chat-bubble-bot self-end';
+        const label = isUser ? '👤 Cliente'
+            : isAgent ? `🧑‍💼 ${m.agentEmail ? m.agentEmail.split('@')[0] : 'Tú'}`
+            : '🤖 Isaac (bot)';
         const time = m.at ? new Date(m.at).toLocaleString('es-MX', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '';
         const content = String(m.content || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]);
+
+        // Si el mensaje del usuario parece ser "(El cliente adjuntó N archivo(s)..." o vacío y hay un doc
+        // cercano en tiempo, mostramos miniatura.
+        let attachmentHtml = '';
+        if (isUser && m.at) {
+            const msgTime = new Date(m.at).getTime();
+            const near = wsDocs.filter(d => Math.abs(d.ts - msgTime) < 60_000); // 60s
+            near.forEach(d => {
+                const isImg = (d.mimeType || '').startsWith('image/');
+                attachmentHtml += isImg
+                    ? `<a href="${d.url}" target="_blank"><img src="${d.url}" class="chat-attachment" alt="adjunto"/></a>`
+                    : `<a href="${d.url}" target="_blank" class="inline-flex items-center gap-1 mt-1 text-xs text-emerald-700 underline">📎 ${d.filename || 'archivo'} (${d.classification || 'doc'})</a>`;
+            });
+        }
+
         return `
             <div class="flex flex-col ${isUser ? 'items-start' : 'items-end'} mb-1.5">
                 <div class="text-[10px] text-gray-400 mb-0.5 px-1">${label}${time ? ' · ' + time : ''}</div>
-                <div class="${bubbleClass} rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap break-words">${content}</div>
+                <div class="${bubbleClass} rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap break-words shadow-sm">${content}${attachmentHtml}</div>
             </div>`;
     }).join('');
     container.innerHTML = bubbles;
     container.scrollTop = container.scrollHeight;
 }
 
-function subscribeToChat(phone) {
+let currentSessionId = null;
+let currentLeadDocs = [];
+
+async function resolveSessionId(phone, leadId) {
+    // 1) Intento directo con phone del lead.
     const sid = sessionIdFromPhone(phone);
-    if (!sid) return;
+    if (!sid) return null;
+    try {
+        const snap = await getDoc(doc(db, "whatsapp_sessions", sid));
+        if (snap.exists()) return sid;
+    } catch {}
+    // 2) Fallback: buscar la sesión por `crmDocId` (solo si tenemos leadId).
+    //    Esto recupera sesiones cuyo doc id no coincide exactamente con el formato esperado.
+    if (leadId) {
+        try {
+            const q = query(collection(db, "whatsapp_sessions"), where("crmDocId", "==", leadId), limit(1));
+            const results = await getDocs(q);
+            if (!results.empty) return results.docs[0].id;
+        } catch (e) {
+            console.warn("Fallback sessionId lookup failed:", e.message);
+        }
+    }
+    // 3) Último recurso: devolvemos el id calculado (aunque el doc no exista),
+    //    para que onSnapshot detecte cuando el cliente inicie la conversación.
+    return sid;
+}
+
+async function subscribeToChat(phone, leadId, leadDocs) {
+    currentLeadDocs = Array.isArray(leadDocs) ? leadDocs : [];
     currentChatLeadPhone = phone;
-    if (unsubscribeFromChat) { try { unsubscribeFromChat(); } catch {} }
+    if (unsubscribeFromChat) { try { unsubscribeFromChat(); } catch {} unsubscribeFromChat = null; }
+
+    const sid = await resolveSessionId(phone, leadId);
+    if (!sid) return;
+    currentSessionId = sid;
+
     const ref = doc(db, "whatsapp_sessions", sid);
     unsubscribeFromChat = onSnapshot(ref, (snap) => {
         if (!snap.exists()) {
             const c = document.getElementById('chat-messages');
-            if (c) c.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-4">Sin conversación iniciada.</p>';
+            if (c) c.innerHTML = '<p class="text-sm text-gray-400 italic text-center py-4">Sin conversación iniciada. Cuando el cliente escriba al bot o tú le envíes un mensaje, aparecerá aquí.</p>';
+            updatePauseUI(null);
             return;
         }
         const data = snap.data();
-        renderChatMessages(data.messages || []);
-        // Indicador de pausa del bot
-        const pausedEl = document.getElementById('chat-paused-indicator');
-        if (pausedEl) {
-            const until = data.agentPausedUntil?.toDate ? data.agentPausedUntil.toDate() : (data.agentPausedUntil ? new Date(data.agentPausedUntil) : null);
-            if (until && until > new Date()) {
-                pausedEl.classList.remove('hidden');
-                pausedEl.textContent = `Bot pausado hasta ${until.toLocaleString('es-MX')}`;
-            } else {
-                pausedEl.classList.add('hidden');
-            }
-        }
+        renderChatMessages(data.messages || [], currentLeadDocs);
+        updatePauseUI(data.agentPausedUntil);
+        // Marcamos como leídos automáticamente (reset de contador)
+        markChatAsRead(sid, leadId).catch(()=>{});
     }, (err) => {
         console.error("chat snapshot error:", err);
         const c = document.getElementById('chat-messages');
-        if (c) c.innerHTML = '<p class="text-sm text-red-500 italic text-center py-4">No se pudo cargar la conversación.</p>';
+        if (c) c.innerHTML = `<p class="text-sm text-red-500 italic text-center py-4">No se pudo cargar la conversación (${err.code || err.message}).</p>`;
     });
+}
+
+function updatePauseUI(agentPausedUntil) {
+    const pausedEl = document.getElementById('chat-paused-indicator');
+    const unpauseBtn = document.getElementById('chat-unpause-btn');
+    const pauseToggle = document.getElementById('chat-pause-toggle');
+    const until = agentPausedUntil?.toDate ? agentPausedUntil.toDate() : (agentPausedUntil ? new Date(agentPausedUntil) : null);
+    const isPaused = until && until > new Date();
+    if (pausedEl) {
+        if (isPaused) {
+            pausedEl.classList.remove('hidden');
+            const textSpan = pausedEl.querySelector('span:first-child');
+            if (textSpan) {
+                textSpan.innerHTML = `⏸️ <strong>Bot pausado</strong> hasta ${until.toLocaleString('es-MX')}. Solo tú responderás.`;
+            }
+        } else {
+            pausedEl.classList.add('hidden');
+        }
+    }
+    if (unpauseBtn) unpauseBtn.classList.toggle('hidden', !isPaused);
+    if (pauseToggle) pauseToggle.checked = !!isPaused;
+}
+
+async function markChatAsRead(sessionId, leadId) {
+    if (!auth.currentUser) return;
+    try {
+        // Sesión: reset del contador de no leídos (allowlisted en las reglas)
+        await updateDoc(doc(db, "whatsapp_sessions", sessionId), {
+            unreadCount: 0,
+            lastReadAt: serverTimestamp(),
+            lastReadBy: auth.currentUser.email || auth.currentUser.uid,
+        });
+    } catch (e) {
+        // Si el agente no tiene permisos (regla antigua), lo ignoramos.
+        if (e.code !== 'permission-denied') console.warn("markChatAsRead session:", e.message);
+    }
+    // Lead: reset del contador mostrado en tabla/kanban
+    if (leadId) {
+        try {
+            await updateDoc(doc(db, "solicitudes", leadId), { unreadWhatsapp: 0 });
+        } catch (e) {
+            console.warn("markChatAsRead lead:", e.message);
+        }
+    }
+}
+
+async function unpauseBotForCurrentChat() {
+    if (!currentSessionId) return;
+    try {
+        await updateDoc(doc(db, "whatsapp_sessions", currentSessionId), { agentPausedUntil: null });
+        const leadId = modalBody?.dataset?.leadId;
+        if (leadId) {
+            try { await updateDoc(doc(db, "solicitudes", leadId), { agentPausedUntil: null }); } catch {}
+        }
+    } catch (e) {
+        alert("No se pudo reactivar el bot: " + (e.message || e));
+    }
 }
 
 function renderExpedienteSection(lead) {
@@ -890,17 +1050,33 @@ function openModal(leadData, leadId) {
         html += `
             <h4 class="text-lg font-semibold border-b pb-2 mt-2 flex items-center gap-2">
                 <i data-lucide="message-circle" class="w-5 h-5 text-green-600"></i> Conversación WhatsApp
+                <span class="text-xs text-gray-500 font-normal ml-auto">🤖 Bot + 🧑‍💼 Tú</span>
             </h4>
-            <div id="chat-paused-indicator" class="hidden mb-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2"></div>
+            <div id="chat-paused-indicator" class="hidden mb-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                <span></span>
+                <button id="chat-unpause-btn" class="text-xs bg-white border border-amber-300 text-amber-800 px-2 py-1 rounded hover:bg-amber-100">
+                    ▶️ Reactivar bot
+                </button>
+            </div>
             <div id="chat-messages" class="flex flex-col max-h-[400px] overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
                 <p class="text-sm text-gray-400 italic text-center py-4">Cargando...</p>
             </div>
             <div class="flex gap-2 items-end">
-                <textarea id="chat-input" rows="2" placeholder="Escribe un mensaje (esto pausa el bot 24h)..."
+                <textarea id="chat-input" rows="2" placeholder="Escribe un mensaje. Por defecto el bot sigue activo en paralelo."
                     class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
                 <button id="chat-send-btn" class="bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-1">
                     <i data-lucide="send" class="w-4 h-4"></i> Enviar
                 </button>
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-2 flex-wrap">
+                <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none" title="Si lo activas, el bot dejará de responder durante 24h y solo tú contestarás">
+                    <span class="toggle-switch">
+                        <input type="checkbox" id="chat-pause-toggle">
+                        <span class="toggle-slider"></span>
+                    </span>
+                    <span>🔒 Tomar control exclusivo (pausa el bot 24h)</span>
+                </label>
+                <span class="text-[11px] text-gray-400">El cliente recibirá tu mensaje y, salvo que tomes control, el bot responderá también si aplica.</span>
             </div>
             <div class="flex flex-wrap gap-1.5 mt-2">
                 <button class="chat-template text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
@@ -1003,7 +1179,7 @@ function openModal(leadData, leadId) {
         modal.querySelector('.modal-content').classList.remove('scale-95');
     }, 10);
     // Suscribirse al chat en vivo
-    if (leadData.phone) subscribeToChat(leadData.phone);
+    if (leadData.phone) subscribeToChat(leadData.phone, leadId, leadData.documentos);
 }
 
 function closeModal() {
@@ -1017,8 +1193,9 @@ function closeModal() {
 closeModalBtn.addEventListener('click', closeModal);
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-// Envío de mensaje WhatsApp desde el CRM
-async function sendWhatsAppFromCRM(phone, message, leadId) {
+// Envío de mensaje WhatsApp desde el CRM.
+// Si pauseBot=true, el bot queda silenciado 24h. Por defecto sigue activo.
+async function sendWhatsAppFromCRM(phone, message, leadId, pauseBot = false) {
     if (!auth.currentUser) throw new Error("No autenticado");
     const idToken = await auth.currentUser.getIdToken();
     const resp = await fetch('/api/send-whatsapp', {
@@ -1027,7 +1204,7 @@ async function sendWhatsAppFromCRM(phone, message, leadId) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ leadId, phone, message }),
+        body: JSON.stringify({ leadId, phone, message, pauseBot }),
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Error ${resp.status}`);
@@ -1051,15 +1228,17 @@ modalBody.addEventListener('click', async (e) => {
     if (e.target.closest('#chat-send-btn')) {
         const sendBtn = document.getElementById('chat-send-btn');
         const input = document.getElementById('chat-input');
+        const pauseToggle = document.getElementById('chat-pause-toggle');
         const phone = modalBody.dataset.leadPhone;
         const msg = (input?.value || '').trim();
+        const pauseBot = !!(pauseToggle && pauseToggle.checked);
         if (!phone) { alert("Este lead no tiene teléfono registrado."); return; }
         if (!msg) { alert("Escriba un mensaje."); return; }
         sendBtn.disabled = true;
         const originalHtml = sendBtn.innerHTML;
         sendBtn.innerHTML = '<span class="spinner"></span><span class="ml-1">Enviando...</span>';
         try {
-            await sendWhatsAppFromCRM(phone, msg, leadId);
+            await sendWhatsAppFromCRM(phone, msg, leadId, pauseBot);
             if (input) input.value = '';
         } catch (err) {
             alert("No se pudo enviar: " + (err.message || err));
@@ -1067,6 +1246,17 @@ modalBody.addEventListener('click', async (e) => {
             sendBtn.disabled = false;
             sendBtn.innerHTML = originalHtml;
             lucide.createIcons();
+        }
+        return;
+    }
+
+    // Chat: reactivar bot
+    if (e.target.closest('#chat-unpause-btn')) {
+        if (!confirm("¿Reactivar bot ahora? El bot volverá a responder automáticamente.")) return;
+        try {
+            await unpauseBotForCurrentChat();
+        } catch (err) {
+            alert("No se pudo reactivar: " + (err.message || err));
         }
         return;
     }

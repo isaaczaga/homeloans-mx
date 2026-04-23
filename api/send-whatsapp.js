@@ -2,7 +2,17 @@
  * /api/send-whatsapp.js
  * Endpoint para enviar mensajes de WhatsApp desde el CRM.
  * Verifica el ID token de Firebase Auth del agente → envía vía Twilio →
- * guarda el mensaje en whatsapp_sessions + pausa el bot 24h.
+ * guarda el mensaje en whatsapp_sessions.
+ *
+ * Body esperado:
+ *   { leadId?, phone, message, pauseBot? }
+ *
+ * Por defecto el bot SIGUE RESPONDIENDO en paralelo al agente (coexistencia).
+ * Si el agente envía `pauseBot: true`, se pausa el bot durante 24h (modo
+ * "tomar control" total del hilo).
+ *
+ * El webhook inyecta los mensajes del agente al contexto de Claude para
+ * evitar respuestas contradictorias o repetitivas.
  */
 
 import twilio from "twilio";
@@ -103,7 +113,10 @@ export default async function handler(req, res) {
   }
 
   // ── 2) Validar body ──
-  const { leadId, phone, message } = req.body || {};
+  const { leadId, phone, message, pauseBot } = req.body || {};
+  // pauseBot es OPCIONAL. Por defecto el bot sigue respondiendo (coexistencia).
+  // Solo se pausa si el agente marca explícitamente la casilla "Tomar control".
+  const shouldPauseBot = pauseBot === true;
   if (!phone || !message || !String(message).trim()) {
     return res.status(400).json({ error: "Se requiere phone y message" });
   }
@@ -133,7 +146,9 @@ export default async function handler(req, res) {
   }
 
   // ── 4) Persistir en Firestore ──
-  const pausedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // Si shouldPauseBot=true, pausamos el bot 24h (modo "tomar control").
+  // Si shouldPauseBot=false (default), el bot sigue respondiendo en paralelo.
+  const pausedUntil = shouldPauseBot ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
   const sessionRef = db.collection("whatsapp_sessions").doc(phoneToDocId(toNumber));
   const agentMsg = {
     role: "agent",
@@ -144,16 +159,15 @@ export default async function handler(req, res) {
   };
 
   try {
-    await sessionRef.set(
-      {
-        messages: FieldValue.arrayUnion(agentMsg),
-        lastActivity: FieldValue.serverTimestamp(),
-        agentPausedUntil: pausedUntil,
-        lastAgent: agentEmail,
-        phone: toNumber,
-      },
-      { merge: true }
-    );
+    const sessionUpdate = {
+      messages: FieldValue.arrayUnion(agentMsg),
+      lastActivity: FieldValue.serverTimestamp(),
+      lastAgent: agentEmail,
+      lastAgentAt: FieldValue.serverTimestamp(),
+      phone: toNumber,
+    };
+    if (pausedUntil) sessionUpdate.agentPausedUntil = pausedUntil;
+    await sessionRef.set(sessionUpdate, { merge: true });
   } catch (e) {
     console.error("[SEND] Firestore session write FAIL:", e.code, e.message);
     // El mensaje ya se envió, no rompemos — solo avisamos
@@ -161,14 +175,12 @@ export default async function handler(req, res) {
 
   if (leadId) {
     try {
-      await db.collection("solicitudes").doc(leadId).set(
-        {
-          lastOutboundAt: FieldValue.serverTimestamp(),
-          lastOutboundBy: agentEmail,
-          agentPausedUntil: pausedUntil,
-        },
-        { merge: true }
-      );
+      const leadUpdate = {
+        lastOutboundAt: FieldValue.serverTimestamp(),
+        lastOutboundBy: agentEmail,
+      };
+      if (pausedUntil) leadUpdate.agentPausedUntil = pausedUntil;
+      await db.collection("solicitudes").doc(leadId).set(leadUpdate, { merge: true });
     } catch (e) {
       console.error("[SEND] Firestore lead update FAIL:", e.code, e.message);
     }
@@ -177,6 +189,7 @@ export default async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     twilioSid,
-    pausedUntil: pausedUntil.toISOString(),
+    pausedUntil: pausedUntil ? pausedUntil.toISOString() : null,
+    botPaused: !!pausedUntil,
   });
 }
