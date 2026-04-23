@@ -144,6 +144,46 @@ function phoneToDocId(phone) {
   return "wa_" + String(phone || "").replace(/\W/g, "_");
 }
 
+// Devuelve TODAS las variantes plausibles del teléfono tal como el form web
+// u otras vías pudieron haberlo guardado en `solicitudes.phone`. Esto permite
+// vincular un chat de WhatsApp con la solicitud original por número, sin
+// crear un duplicado por diferencia de formato.
+//
+// Ejemplo: para WhatsApp "+5215519487025" genera:
+//   - "5519487025"    (10 dígitos, lo típico del form)
+//   - "525519487025"  (12 dígitos canónico)
+//   - "5215519487025" (13 dígitos legacy con "1" móvil)
+//   - "+525519487025", "+5215519487025", "+5519487025"
+// Firestore `in` soporta hasta 30 valores, así que esta lista cabe de sobra.
+function phoneSearchVariants(whatsappPhone) {
+  const d = String(whatsappPhone || "").replace(/\D/g, "");
+  if (!d) return [];
+  const variants = new Set();
+  variants.add(d);
+  const ten = d.length >= 10 ? d.slice(-10) : d;
+  if (ten.length === 10) {
+    variants.add(ten);                 // "5519487025"
+    variants.add("52" + ten);          // "525519487025"
+    variants.add("521" + ten);         // "5215519487025"
+    variants.add("+52" + ten);
+    variants.add("+521" + ten);
+    variants.add("+" + ten);
+  }
+  // Si llega canónico 12, agregar la versión con "1" y sin prefijo
+  if (d.length === 12 && d.startsWith("52")) {
+    variants.add("521" + d.slice(2));
+    variants.add("+" + d);
+    variants.add("+521" + d.slice(2));
+  }
+  // Si llega legacy 13 con "521", agregar sin el "1"
+  if (d.length === 13 && d.startsWith("521")) {
+    variants.add("52" + d.slice(3));
+    variants.add("+" + d);
+    variants.add("+52" + d.slice(3));
+  }
+  return [...variants];
+}
+
 // IDs "legacy" que pudieron haberse creado antes de canonicalizar.
 // El webhook los revisa al primer mensaje para migrar los mensajes viejos.
 function legacyDocIds(phone) {
@@ -463,25 +503,54 @@ export default async function handler(req, res) {
 
   const botPaused = agentPausedUntil && agentPausedUntil > new Date();
 
-  // ── PASO 1b: Primer mensaje — crear lead inicial o enlazar ──
+  // ── PASO 1b: Primer mensaje — enlazar a solicitud existente o crear lead ──
+  // CRÍTICO: el form web puede guardar el teléfono en múltiples formatos
+  // (10 dígitos, 12 con "52", con "+52", con "1" móvil, etc). Intentamos
+  // TODAS las variantes plausibles antes de crear un duplicado. Si por alguna
+  // razón ninguna variante exacta matchea (p.ej. el form guardó con guiones),
+  // escaneamos como fallback los últimos leads y canonicalizamos en memoria.
   const isFirstMessage = messages.length === 0 && !crmDocId;
   if (isFirstMessage) {
     try {
-      const digits = fromNumber.replace(/\D/g, "");
-      const tenDigitPhone = digits.length >= 10 ? digits.slice(-10) : digits;
-      
+      const variants = phoneSearchVariants(fromNumber);
+      const canonFrom = canonicalMxPhone(fromNumber);
       const leadsRef = db.collection("solicitudes");
-      let existingLeadSnap = await leadsRef.where("phone", "==", digits).limit(1).get();
-      if (existingLeadSnap.empty && tenDigitPhone !== digits) {
-        existingLeadSnap = await leadsRef.where("phone", "==", tenDigitPhone).limit(1).get();
+
+      let foundDocId = null;
+      if (variants.length) {
+        // Firestore `in` acepta hasta 30 valores. Partimos por si hay más.
+        for (let i = 0; i < variants.length && !foundDocId; i += 30) {
+          const chunk = variants.slice(i, i + 30);
+          const snap = await leadsRef.where("phone", "in", chunk).limit(1).get();
+          if (!snap.empty) foundDocId = snap.docs[0].id;
+        }
       }
 
-      if (!existingLeadSnap.empty) {
-        crmDocId = existingLeadSnap.docs[0].id;
-        console.log(`[WH] PASO 1b OK — Lead existente encontrado: ${crmDocId}`);
+      // Fallback defensivo: si no matcheó ninguna variante exacta, escaneamos
+      // los últimos 200 leads y comparamos canonicalizando. Costoso pero se
+      // ejecuta UNA sola vez por conversación y protege contra formatos raros.
+      if (!foundDocId && canonFrom) {
+        const recentSnap = await leadsRef
+          .orderBy("fecha", "desc")
+          .limit(200)
+          .get();
+        for (const doc of recentSnap.docs) {
+          const p = doc.data()?.phone;
+          if (!p) continue;
+          if (canonicalMxPhone(p) === canonFrom) {
+            foundDocId = doc.id;
+            console.log(`[WH] PASO 1b — match por canonicalización con lead ${doc.id} (phone guardado "${p}")`);
+            break;
+          }
+        }
+      }
+
+      if (foundDocId) {
+        crmDocId = foundDocId;
+        console.log(`[WH] PASO 1b OK — Lead existente vinculado: ${crmDocId}`);
       } else {
-        const phone = digits;
-        const docRef = await db.collection("solicitudes").add({
+        const phone = canonFrom || fromNumber.replace(/\D/g, "");
+        const docRef = await leadsRef.add({
           fullName: "Lead WhatsApp",
           phone,
           primerMensaje: incomingMessage || "(adjunto archivo)",
@@ -490,10 +559,10 @@ export default async function handler(req, res) {
           fecha: FieldValue.serverTimestamp(),
         });
         crmDocId = docRef.id;
-        console.log(`[WH] PASO 1b OK — Lead inicial creado: ${crmDocId}`);
+        console.log(`[WH] PASO 1b OK — Lead inicial creado (no match por tel): ${crmDocId}`);
       }
     } catch (e) {
-      console.error("[WH] PASO 1b FAIL:", e.code, e.message);
+      console.error("[WH] PASO 1b FAIL:", e.code, e.message, e.stack);
     }
   }
 
@@ -711,33 +780,54 @@ CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor
 
   if (leadData) {
     try {
-      const phone = fromNumber.replace("whatsapp:", "").replace("+", "");
+      const phone = canonicalMxPhone(fromNumber) || fromNumber.replace(/\D/g, "");
       const isRefi = leadData.loanPurpose === "refinanciamiento";
+
+      // Estado actual del lead (si existe) para NO sobreescribir datos buenos.
+      let currentData = {};
+      if (crmDocId) {
+        try {
+          const snap = await db.collection("solicitudes").doc(crmDocId).get();
+          currentData = snap.data() || {};
+        } catch {}
+      }
+
+      const hasVal = (v) => v !== undefined && v !== null && v !== "" && !(typeof v === "number" && v === 0);
+      const keepIfBetter = (existing, incoming) => hasVal(existing) ? existing : incoming;
+
+      // Construimos un update DEFENSIVO:
+      //   - fullName/email: si ya hay uno "real" (distinto de "Lead WhatsApp"), lo preservamos.
+      //   - numéricos: si el existente ya tiene valor y el entrante es 0, mantenemos el existente.
+      //   - strings libres: igual, preservamos el existente si ya tiene valor.
+      const placeholderName = (name) => !name || /^lead whatsapp$/i.test(String(name).trim());
       const fullLeadData = {
-        fullName: "Lead WhatsApp",
-        phone,
-        loanPurpose: isRefi ? "refinanciamiento" : "compra",
-        propertyValue: Number(leadData.propertyValue) || 0,
-        downPayment: Number(leadData.downPayment) || 0,
-        monthlyIncome: Number(leadData.monthlyIncome) || 0,
-        creditScore: leadData.creditScore || "",
-        colonia: leadData.colonia || "",
-        source: "whatsapp_chatbot",
-        calificadoEn: FieldValue.serverTimestamp(),
-        // Campos exclusivos de refinanciamiento
+        // Solo escribimos el placeholder si NO hay nombre real guardado.
+        fullName: placeholderName(currentData.fullName) ? "Lead WhatsApp" : currentData.fullName,
+        email: keepIfBetter(currentData.email, ""),
+        phone: keepIfBetter(currentData.phone, phone),
+        loanPurpose: keepIfBetter(currentData.loanPurpose, isRefi ? "refinanciamiento" : "compra"),
+        propertyValue: hasVal(currentData.propertyValue) ? currentData.propertyValue : Number(leadData.propertyValue) || 0,
+        downPayment:   hasVal(currentData.downPayment)   ? currentData.downPayment   : Number(leadData.downPayment)   || 0,
+        monthlyIncome: hasVal(currentData.monthlyIncome) ? currentData.monthlyIncome : Number(leadData.monthlyIncome) || 0,
+        creditScore:   keepIfBetter(currentData.creditScore, leadData.creditScore || ""),
+        colonia:       keepIfBetter(currentData.colonia,     leadData.colonia     || ""),
+        // Origen: solo lo sobreescribimos si no había source (o si venía también de WA).
+        source: currentData.source && currentData.source !== "whatsapp_chatbot"
+          ? currentData.source
+          : "whatsapp_chatbot",
+        calificadoEn: currentData.calificadoEn || FieldValue.serverTimestamp(),
+        // Campos exclusivos de refinanciamiento (solo si el entrante es refi Y no hay datos previos)
         ...(isRefi && {
-          currentBank: leadData.currentBank || "",
-          currentRate: Number(leadData.currentRate) || 0,
-          currentBalance: Number(leadData.currentBalance) || 0,
+          currentBank:    keepIfBetter(currentData.currentBank, leadData.currentBank || ""),
+          currentRate:    hasVal(currentData.currentRate)    ? currentData.currentRate    : Number(leadData.currentRate)    || 0,
+          currentBalance: hasVal(currentData.currentBalance) ? currentData.currentBalance : Number(leadData.currentBalance) || 0,
         }),
       };
+      if (!currentData.estado) fullLeadData.estado = "Recibida";
+      // No conservamos la `fecha` original; `serverTimestamp()` sólo se aplica en CREATE abajo.
 
       if (crmDocId) {
-        // Obtenemos el estado actual para no sobreescribirlo si ya avanzó
-        const leadSnapForUpdate = await db.collection("solicitudes").doc(crmDocId).get();
-        const currentData = leadSnapForUpdate.data() || {};
-        if (!currentData.estado) fullLeadData.estado = "Recibida";
-        
+        console.log(`[WH] PASO 5 — merge defensivo sobre lead existente ${crmDocId}. fullName preservado: ${fullLeadData.fullName}`);
         await db.collection("solicitudes").doc(crmDocId).set(fullLeadData, { merge: true });
       } else {
         const docRef = await db.collection("solicitudes").add({
@@ -761,9 +851,10 @@ CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor
     finalReply = `Recibimos su ${labels.join(" y ")}. ${reply}`;
   }
 
-  // Al calificar (primera vez), enviar enlace para completar expediente.
-  // Usamos crmDocId (el Firestore doc ID, 20 chars, no guessable) como token del enlace.
-  if (isNowQualified && crmDocId) {
+  // Al calificar POR PRIMERA VEZ vía WhatsApp, enviar enlace para completar
+  // expediente. Si el lead ya venía calificado del form web, no re-enviamos
+  // el link (ya lo vieron) — el bot se enfoca en pedir documentos.
+  if (isNowQualified && !alreadyQualified && crmDocId) {
     const base =
       process.env.PUBLIC_SITE_URL ||
       "https://homeloans.mx";
