@@ -662,14 +662,41 @@ function kanbanCard(lead) {
 let unsubscribeFromChat = null;
 let currentChatLeadPhone = null;
 
-// Deriva el ID del documento de whatsapp_sessions desde el teléfono del lead.
-// El webhook usa `phoneToDocId("whatsapp:+<phone>")` → "wa_whatsapp__<phone>"
+// Deriva el ID canónico del documento de whatsapp_sessions desde el teléfono
+// del lead. DEBE coincidir con `phoneToDocId` del webhook y send-whatsapp.
+// Formato canónico: 12 dígitos "52XXXXXXXXXX" (sin el "1" móvil legado).
 function sessionIdFromPhone(phone) {
     if (!phone) return null;
     let digits = String(phone).replace(/\D/g, "");
     if (!digits) return null;
-    if (digits.length === 10) digits = "52" + digits; // Twilio webhook usa 52 para México
+    if (digits.length === 10) digits = "52" + digits;
+    else if (digits.length === 13 && digits.startsWith("521")) digits = "52" + digits.slice(3);
     return "wa_whatsapp__" + digits;
+}
+
+// Devuelve TODOS los posibles sessionIds (canónico + legacy) donde puede vivir
+// la conversación. Se usa en resolveSessionId para encontrar sesiones viejas
+// que se crearon antes de canonicalizar (con "1" móvil o con "whatsapp_+" literal).
+function candidateSessionIds(phone) {
+    const digits = String(phone || "").replace(/\D/g, "");
+    if (!digits) return [];
+    const ids = new Set();
+    // Canónico "52XXXXXXXXXX"
+    if (digits.length === 10) ids.add("wa_whatsapp__52" + digits);
+    else if (digits.length === 12) ids.add("wa_whatsapp__" + digits);
+    else if (digits.length === 13 && digits.startsWith("521")) {
+        ids.add("wa_whatsapp__52" + digits.slice(3));
+        ids.add("wa_whatsapp__" + digits); // legacy con "1"
+    }
+    // Legacy con "1" móvil (cuando Twilio mandaba "+521...")
+    if (digits.length === 10) ids.add("wa_whatsapp__521" + digits);
+    else if (digits.length === 12 && digits.startsWith("52")) ids.add("wa_whatsapp__521" + digits.slice(2));
+    // Legacy con símbolos escapados "wa_whatsapp__+52..."
+    const canonDigits = digits.length === 10 ? "52" + digits
+        : (digits.length === 13 && digits.startsWith("521")) ? "52" + digits.slice(3)
+        : digits;
+    ids.add(("wa_whatsapp__+" + canonDigits).replace(/\W/g, "_"));
+    return [...ids];
 }
 
 function renderChatMessages(messages, leadDocs) {
@@ -726,27 +753,45 @@ let currentSessionId = null;
 let currentLeadDocs = [];
 
 async function resolveSessionId(phone, leadId) {
-    // 1) Intento directo con phone del lead.
-    const sid = sessionIdFromPhone(phone);
-    if (!sid) return null;
-    try {
-        const snap = await getDoc(doc(db, "whatsapp_sessions", sid));
-        if (snap.exists()) return sid;
-    } catch {}
-    // 2) Fallback: buscar la sesión por `crmDocId` (solo si tenemos leadId).
-    //    Esto recupera sesiones cuyo doc id no coincide exactamente con el formato esperado.
+    // 1) Probamos TODOS los ids candidatos (canónico + legacy) y nos quedamos
+    //    con el que tenga más mensajes. Esto cubre el caso donde el bot escribió
+    //    en un doc "521..." antes de canonicalizar y el CRM buscaba en "52...".
+    const candidates = candidateSessionIds(phone);
+    let best = null;
+    let bestCount = -1;
+    let firstExisting = null;
+    for (const sid of candidates) {
+        try {
+            const snap = await getDoc(doc(db, "whatsapp_sessions", sid));
+            if (snap.exists()) {
+                const data = snap.data() || {};
+                // Ignoramos docs ya migrados (el webhook los marca con migratedTo)
+                if (data.migratedTo) continue;
+                if (!firstExisting) firstExisting = sid;
+                const count = Array.isArray(data.messages) ? data.messages.length : 0;
+                if (count > bestCount) { best = sid; bestCount = count; }
+            }
+        } catch {}
+    }
+    if (best) return best;
+    if (firstExisting) return firstExisting;
+
+    // 2) Fallback: buscar por `crmDocId` (solo si tenemos leadId).
     if (leadId) {
         try {
             const q = query(collection(db, "whatsapp_sessions"), where("crmDocId", "==", leadId), limit(1));
             const results = await getDocs(q);
-            if (!results.empty) return results.docs[0].id;
+            if (!results.empty) {
+                const docSnap = results.docs[0];
+                if (!docSnap.data()?.migratedTo) return docSnap.id;
+            }
         } catch (e) {
             console.warn("Fallback sessionId lookup failed:", e.message);
         }
     }
-    // 3) Último recurso: devolvemos el id calculado (aunque el doc no exista),
-    //    para que onSnapshot detecte cuando el cliente inicie la conversación.
-    return sid;
+    // 3) Último recurso: el canónico (aunque no exista), para que onSnapshot
+    //    detecte cuando empiece la conversación.
+    return candidates[0] || sessionIdFromPhone(phone);
 }
 
 async function subscribeToChat(phone, leadId, leadDocs) {

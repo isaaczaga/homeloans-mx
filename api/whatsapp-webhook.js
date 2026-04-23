@@ -118,8 +118,46 @@ Responde EXCLUSIVAMENTE con JSON válido (sin markdown, sin texto adicional):
 {"classification":"<categoria>","summary":"<descripción breve de 1 línea, máximo 15 palabras>"}`;
 
 // ── Utilidades ──────────────────────────────────────────────
+
+// Canonicaliza un teléfono mexicano a 12 dígitos (52 + 10) para usar como
+// parte del doc ID. Unifica los tres formatos que pueden llegar:
+//   - "5512345678"              → "525512345678"   (form web, 10 dígitos)
+//   - "525512345678"            → "525512345678"   (ya canónico)
+//   - "5215512345678"           → "525512345678"   (Twilio legacy con "1" móvil)
+//   - "whatsapp:+5215512345678" → "525512345678"
+// Si el número no es mexicano reconocible, regresa los dígitos tal cual.
+function canonicalMxPhone(phone) {
+  const d = String(phone || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.length === 10) return "52" + d;
+  if (d.length === 13 && d.startsWith("521")) return "52" + d.slice(3);
+  return d;
+}
+
+// Genera el doc ID canónico de whatsapp_sessions: "wa_whatsapp__<12 dígitos>".
+// Este formato coincide con `sessionIdFromPhone` del CRM y `normalizeWhatsAppNumber`
+// de send-whatsapp, para que los tres escriban/lean el mismo documento.
 function phoneToDocId(phone) {
-  return "wa_" + phone.replace(/\W/g, "_");
+  const canon = canonicalMxPhone(phone);
+  if (canon) return "wa_whatsapp__" + canon;
+  // Fallback defensivo para números no-mexicanos
+  return "wa_" + String(phone || "").replace(/\W/g, "_");
+}
+
+// IDs "legacy" que pudieron haberse creado antes de canonicalizar.
+// El webhook los revisa al primer mensaje para migrar los mensajes viejos.
+function legacyDocIds(phone) {
+  const d = String(phone || "").replace(/\D/g, "");
+  const ids = new Set();
+  if (!d) return [];
+  // Formato viejo "wa_whatsapp__521..." (Twilio con "1" móvil mexicano)
+  if (d.length === 13 && d.startsWith("521")) ids.add("wa_whatsapp__" + d);
+  if (d.length === 10) ids.add("wa_whatsapp__521" + d);
+  if (d.length === 12 && d.startsWith("52")) ids.add("wa_whatsapp__521" + d.slice(2));
+  // Formato con "whatsapp:+" literal
+  const withPrefix = "wa_whatsapp__+" + d;
+  ids.add(withPrefix.replace(/\W/g, "_"));
+  return [...ids];
 }
 
 function parseBody(req) {
@@ -276,7 +314,49 @@ export default async function handler(req, res) {
   let alreadyQualified = false;
   let crmDocId = null;
   let agentPausedUntil = null;
-  const sessionRef = db.collection("whatsapp_sessions").doc(phoneToDocId(fromNumber));
+  const canonicalDocId = phoneToDocId(fromNumber);
+  const sessionRef = db.collection("whatsapp_sessions").doc(canonicalDocId);
+
+  // PASO 1.0: Migración de sesiones legacy.
+  // Si existe un doc viejo (ej. "wa_whatsapp__521..." con el "1" móvil antes de
+  // canonicalizar) y el canónico no existe o tiene menos mensajes, fusionamos
+  // los mensajes y copiamos crmDocId/agentPausedUntil al canónico. Esto asegura
+  // que historial del bot + mensajes del agente + mensajes nuevos del cliente
+  // queden TODOS en el mismo doc, que es el que el CRM observa.
+  try {
+    const legacyIds = legacyDocIds(fromNumber).filter((id) => id !== canonicalDocId);
+    if (legacyIds.length > 0) {
+      const canonSnap = await sessionRef.get();
+      const canonMsgs = canonSnap.exists ? (canonSnap.data().messages || []) : [];
+      for (const legacyId of legacyIds) {
+        const legacyRef = db.collection("whatsapp_sessions").doc(legacyId);
+        const legacySnap = await legacyRef.get();
+        if (!legacySnap.exists) continue;
+        const legacyData = legacySnap.data() || {};
+        const legacyMsgs = legacyData.messages || [];
+        if (legacyMsgs.length === 0) continue;
+        // Fusiona deduplicando por (role + content + at)
+        const seen = new Set(canonMsgs.map((m) => `${m.role}|${m.content}|${m.at || ""}`));
+        const merged = [...canonMsgs];
+        for (const m of legacyMsgs) {
+          const k = `${m.role}|${m.content}|${m.at || ""}`;
+          if (!seen.has(k)) { merged.push(m); seen.add(k); }
+        }
+        merged.sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+        const migrationPayload = { messages: merged };
+        if (legacyData.crmDocId && !canonSnap.data()?.crmDocId) migrationPayload.crmDocId = legacyData.crmDocId;
+        if (legacyData.agentPausedUntil) migrationPayload.agentPausedUntil = legacyData.agentPausedUntil;
+        if (legacyData.qualified) migrationPayload.qualified = true;
+        if (legacyData.phone && !canonSnap.data()?.phone) migrationPayload.phone = legacyData.phone;
+        await sessionRef.set(migrationPayload, { merge: true });
+        // Marca el doc legacy como migrado para que no se procese dos veces
+        await legacyRef.set({ migratedTo: canonicalDocId, migratedAt: FieldValue.serverTimestamp() }, { merge: true });
+        console.log(`[WH] MIGRATION — ${legacyId} → ${canonicalDocId} (${legacyMsgs.length} msgs fusionados)`);
+      }
+    }
+  } catch (e) {
+    console.error("[WH] MIGRATION FAIL (non-fatal):", e.message);
+  }
 
   let rawMessages = [];
   try {

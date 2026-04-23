@@ -45,17 +45,32 @@ const twilioClient = twilio(
 );
 
 // ── Utilidades ──────────────────────────────────────────────
+
+// Canonicaliza un teléfono mexicano a 12 dígitos (52 + 10). Unifica los
+// formatos que pueden venir: 10 dígitos (form web), 12 dígitos (ya canónico),
+// 13 dígitos con "1" móvil legado (Twilio). Debe coincidir EXACTAMENTE con
+// la misma función en whatsapp-webhook.js y con sessionIdFromPhone del CRM.
+function canonicalMxPhone(phone) {
+  const d = String(phone || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.length === 10) return "52" + d;
+  if (d.length === 13 && d.startsWith("521")) return "52" + d.slice(3);
+  return d;
+}
+
 function phoneToDocId(phone) {
-  return "wa_" + phone.replace(/\W/g, "_");
+  const canon = canonicalMxPhone(phone);
+  if (canon) return "wa_whatsapp__" + canon;
+  return "wa_" + String(phone || "").replace(/\W/g, "_");
 }
 
 // Normaliza número a formato WhatsApp de Twilio: "whatsapp:+52..."
+// Twilio acepta tanto "521..." como "52..." para móviles mexicanos; usamos
+// el formato canónico "52..." para mantener consistencia con el doc ID.
 function normalizeWhatsAppNumber(phone) {
-  let cleaned = String(phone).trim().replace(/^whatsapp:/i, "");
-  cleaned = cleaned.replace(/\D/g, "");
-  if (cleaned.length === 10) {
-    cleaned = "52" + cleaned; // Asumir México si son 10 dígitos
-  }
+  const canon = canonicalMxPhone(phone);
+  if (canon) return "whatsapp:+" + canon;
+  const cleaned = String(phone || "").trim().replace(/^whatsapp:/i, "").replace(/\D/g, "");
   return "whatsapp:+" + cleaned;
 }
 
