@@ -166,6 +166,10 @@
                         <button id="export-csv-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center text-sm gap-2">
                             <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
                         </button>
+                        <!-- Backfill de documentos huérfanos (admin) -->
+                        <button id="backfill-docs-btn" title="Recupera documentos de WhatsApp que quedaron sin asociar a un lead" class="bg-white border border-amber-300 text-amber-800 font-semibold px-4 py-2 rounded-lg hover:bg-amber-50 transition flex items-center text-sm gap-2">
+                            <i data-lucide="folder-sync" class="w-4 h-4"></i> Sincronizar documentos
+                        </button>
                     </div>
                 </div>
 
@@ -234,6 +238,9 @@ let app;
 if (!getApps().length) { app = initializeApp(firebaseConfig); } else { app = getApps()[0]; }
 const auth = getAuth(app);
 const db = getFirestore(app);
+// Exposición mínima para scripts admin one-shot (ej. /api/admin-set-cors).
+// No expone secretos: solo el objeto auth del SDK modular.
+window.__auth = auth;
 lucide.createIcons();
 
 // --- DOM refs ---
@@ -527,6 +534,9 @@ function renderTable() {
         const nameBadges = [];
         if (unread > 0) nameBadges.push(`<span class="chat-unread-dot" title="${unread} mensaje(s) sin leer">${unread > 9 ? '9+' : unread}</span>`);
         if (isBotPaused) nameBadges.push(`<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full" title="Bot pausado">⏸️ bot</span>`);
+        if (lead.requiereAsesorHumano || lead.perfilLaboral === 'pfae') {
+            nameBadges.push(`<span class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-full font-semibold" title="PFAE — requiere asesor humano">🚨 PFAE</span>`);
+        }
         const row = document.createElement('tr');
         row.className = 'bg-white border-b hover:bg-gray-50' + (unread > 0 ? ' bg-emerald-50/30' : '');
         row.innerHTML = `
@@ -631,9 +641,11 @@ function kanbanCard(lead) {
     const unread = Number(lead.unreadWhatsapp || 0);
     const isBotPaused = lead.agentPausedUntil &&
         (lead.agentPausedUntil.toDate ? lead.agentPausedUntil.toDate() : new Date(lead.agentPausedUntil)) > new Date();
+    const isPfae = lead.requiereAsesorHumano || lead.perfilLaboral === 'pfae';
     const badgeBar = [
         unread > 0 ? `<span class="chat-unread-dot" title="${unread} sin leer">${unread > 9 ? '9+' : unread}</span>` : '',
         isBotPaused ? `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full" title="Bot pausado">⏸️ bot</span>` : '',
+        isPfae ? `<span class="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded-full font-semibold" title="PFAE — requiere asesor humano">🚨 PFAE</span>` : '',
     ].filter(Boolean).join('');
     const cardHighlight = unread > 0 ? 'ring-2 ring-emerald-400' : '';
     return `
@@ -1014,15 +1026,42 @@ function renderDocumentsSection(documentos) {
     if (docs.length === 0) return '';
 
     const labelMap = {
-        INE:'INE', comprobante_ingresos:'Comprobante ingresos', estado_cuenta:'Estado de cuenta',
-        comprobante_domicilio:'Comprobante domicilio', escritura:'Escritura',
-        identificacion_otra:'Identificación', rfc:'RFC', otro:'Documento'
+        INE:'INE',
+        curp:'CURP',
+        acta_nacimiento:'Acta de nacimiento',
+        acta_matrimonio:'Acta de matrimonio',
+        carta_patronal:'Carta patronal',
+        recibo_nomina:'Recibo de nómina',
+        comprobante_ingresos:'Comprobante ingresos',
+        estado_cuenta:'Estado de cuenta',
+        estado_cuenta_credito:'EdC crédito hipotecario',
+        tabla_amortizacion:'Tabla de amortización',
+        comprobante_domicilio:'Comprobante domicilio',
+        escritura:'Escritura',
+        identificacion_otra:'Identificación',
+        rfc:'RFC / CSF',
+        declaracion_anual:'Declaración anual',
+        autorizacion_buro:'Autorización buró',
+        otro:'Documento'
     };
     const chipColor = {
-        INE:'bg-blue-100 text-blue-800', comprobante_ingresos:'bg-emerald-100 text-emerald-800',
-        estado_cuenta:'bg-purple-100 text-purple-800', comprobante_domicilio:'bg-amber-100 text-amber-800',
-        escritura:'bg-indigo-100 text-indigo-800', identificacion_otra:'bg-blue-100 text-blue-800',
-        rfc:'bg-teal-100 text-teal-800', otro:'bg-gray-100 text-gray-800'
+        INE:'bg-blue-100 text-blue-800',
+        curp:'bg-sky-100 text-sky-800',
+        acta_nacimiento:'bg-cyan-100 text-cyan-800',
+        acta_matrimonio:'bg-pink-100 text-pink-800',
+        carta_patronal:'bg-lime-100 text-lime-800',
+        recibo_nomina:'bg-emerald-100 text-emerald-800',
+        comprobante_ingresos:'bg-emerald-100 text-emerald-800',
+        estado_cuenta:'bg-purple-100 text-purple-800',
+        estado_cuenta_credito:'bg-fuchsia-100 text-fuchsia-800',
+        tabla_amortizacion:'bg-violet-100 text-violet-800',
+        comprobante_domicilio:'bg-amber-100 text-amber-800',
+        escritura:'bg-indigo-100 text-indigo-800',
+        identificacion_otra:'bg-blue-100 text-blue-800',
+        rfc:'bg-teal-100 text-teal-800',
+        declaracion_anual:'bg-orange-100 text-orange-800',
+        autorizacion_buro:'bg-rose-100 text-rose-800',
+        otro:'bg-gray-100 text-gray-800'
     };
     const items = docs.map((d, i) => {
         const isImg = (d.mimeType || '').startsWith('image/');
@@ -1032,6 +1071,9 @@ function renderDocumentsSection(documentos) {
             ? `<img src="${d.url}" alt="${label}" class="w-16 h-16 object-cover rounded-md border border-gray-200 flex-shrink-0">`
             : `<div class="w-16 h-16 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center flex-shrink-0"><i data-lucide="file-text" class="w-7 h-7 text-gray-500"></i></div>`;
         const when = d.uploadedAt ? new Date(d.uploadedAt).toLocaleString('es-MX', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+        // El filename se usa para el atributo `download` al descargar. Lo escapamos para
+        // que las comillas simples/dobles no rompan el HTML inline del data-attr.
+        const safeFilename = String(d.filename || `${label.replace(/\s+/g,'_')}_${i+1}`).replace(/"/g, '&quot;');
         return `
             <li class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
                 ${preview}
@@ -1041,9 +1083,17 @@ function renderDocumentsSection(documentos) {
                         ${when ? `<span class="text-[11px] text-gray-400">${when}</span>` : ''}
                     </div>
                     ${d.summary ? `<p class="text-xs text-gray-600 mb-1">${d.summary}</p>` : ''}
-                    <a href="${d.url}" target="_blank" class="text-xs text-emerald-600 hover:underline inline-flex items-center gap-1">
-                        <i data-lucide="external-link" class="w-3 h-3"></i> Abrir ${d.filename || 'archivo'}
-                    </a>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="${d.url}" target="_blank" rel="noopener" class="text-xs text-emerald-600 hover:underline inline-flex items-center gap-1">
+                            <i data-lucide="external-link" class="w-3 h-3"></i> Abrir
+                        </a>
+                        <button type="button"
+                                class="download-doc-btn text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                                data-url="${d.url}" data-filename="${safeFilename}">
+                            <i data-lucide="download" class="w-3 h-3"></i> Descargar
+                        </button>
+                        <span class="text-[11px] text-gray-400 truncate">${d.filename || 'archivo'}</span>
+                    </div>
                 </div>
             </li>`;
     }).join('');
@@ -1076,6 +1126,22 @@ function openModal(leadData, leadId) {
     };
 
     let html = '<div class="space-y-4">';
+
+    // Alerta prioritaria: PFAE / requiere asesor humano.
+    // El bot ya pausó la conversación 24h — el asesor debe tomar el caso.
+    if (leadData.requiereAsesorHumano || leadData.perfilLaboral === 'pfae') {
+        html += `<div class="bg-rose-50 border border-rose-300 rounded-lg px-4 py-3 flex items-start gap-3">
+            <span class="text-rose-600 text-xl">🚨</span>
+            <div>
+                <p class="font-semibold text-rose-800">Prospecto PFAE — requiere asesor humano</p>
+                <p class="text-sm text-rose-700">El bot detectó que comprueba ingresos como PFAE (honorarios o actividad empresarial) y se pausó automáticamente 24h. Contáctalo tú mismo por WhatsApp para armar su expediente.</p>
+            </div>
+        </div>`;
+    } else if (leadData.perfilLaboral === 'asalariado') {
+        html += `<div class="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-emerald-800">
+            <span>✅</span><span>Perfil laboral: <strong>Asalariado</strong> — el bot está recolectando documentos del checklist.</span>
+        </div>`;
+    }
 
     // Alerta visual si es refinanciamiento
     if (isRefi && leadData.currentRate) {
@@ -1221,8 +1287,30 @@ function openModal(leadData, leadId) {
         </div>
     `;
 
-    // Status buttons
+    // Portal del cliente — generar magic link
     html += `
+        <h4 class="text-lg font-semibold border-b pb-2 mt-2 flex items-center gap-2">
+            <i data-lucide="user-round-cog" class="w-5 h-5 text-emerald-600"></i> Portal del Cliente
+        </h4>
+        <p class="text-xs text-gray-500 mt-2">Genera un enlace seguro (válido 48 h) para que el cliente vea su estado y suba documentos desde la web.</p>
+        <div class="flex flex-wrap gap-2 mt-2">
+            <button id="portal-generate-btn" class="text-sm font-medium px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2">
+                <i data-lucide="link" class="w-4 h-4"></i> Generar enlace del portal
+            </button>
+            <button id="portal-send-wa-btn" class="hidden text-sm font-medium px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 flex items-center gap-2">
+                <i data-lucide="send" class="w-4 h-4"></i> Enviar por WhatsApp
+            </button>
+        </div>
+        <div id="portal-link-result" class="hidden mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+            <p class="text-xs font-semibold text-emerald-900 mb-1">Enlace generado (expira <span id="portal-link-exp">—</span>)</p>
+            <div class="flex items-center gap-2">
+                <input id="portal-link-url" type="text" readonly class="flex-1 text-xs bg-white border border-emerald-200 rounded px-2 py-1.5 font-mono">
+                <button id="portal-link-copy" class="text-xs bg-white border border-emerald-300 text-emerald-800 px-2 py-1.5 rounded hover:bg-emerald-100 flex items-center gap-1">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i><span>Copiar</span>
+                </button>
+            </div>
+        </div>
+
         <h4 class="text-lg font-semibold border-b pb-2 mt-2">Gestionar Prospecto</h4>
         <div class="flex flex-wrap gap-2 mt-3">
             <button class="status-btn text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200" data-status="En Seguimiento">En Seguimiento</button>
@@ -1261,6 +1349,24 @@ function closeModal() {
 closeModalBtn.addEventListener('click', closeModal);
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
+// Genera un enlace firmado (JWT 48h) para que el lead acceda a su portal.
+// Devuelve { url, expiresAt }. Requiere Firebase Auth del agente.
+async function generarLinkPortal(leadId) {
+    if (!auth.currentUser) throw new Error("No autenticado");
+    const idToken = await auth.currentUser.getIdToken();
+    const resp = await fetch('/api/generar-link-portal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ leadId }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Error ${resp.status}`);
+    return data;
+}
+
 // Envío de mensaje WhatsApp desde el CRM.
 // Si pauseBot=true, el bot queda silenciado 24h. Por defecto sigue activo.
 async function sendWhatsAppFromCRM(phone, message, leadId, pauseBot = false) {
@@ -1283,6 +1389,112 @@ async function sendWhatsAppFromCRM(phone, message, leadId, pauseBot = false) {
 modalBody.addEventListener('click', async (e) => {
     const leadId = modalBody.dataset.leadId;
     if (!leadId) return;
+
+    // Descargar documento del expediente. Usamos fetch + Blob para forzar
+    // la descarga aunque el navegador quiera mostrar el PDF inline; si falla
+    // por cualquier razón (p.ej. CORS en algún entorno exótico), caemos a
+    // abrir la URL firmada en una pestaña nueva.
+    const dlBtn = e.target.closest('.download-doc-btn');
+    if (dlBtn) {
+        const url = dlBtn.dataset.url;
+        const filename = dlBtn.dataset.filename || 'documento';
+        if (!url) return;
+        const originalHtml = dlBtn.innerHTML;
+        dlBtn.innerHTML = '<span class="spinner"></span><span class="ml-1">Descargando...</span>';
+        dlBtn.disabled = true;
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 200);
+        } catch (err) {
+            console.error('download fail, fallback to open:', err);
+            window.open(url, '_blank', 'noopener');
+        } finally {
+            dlBtn.innerHTML = originalHtml;
+            dlBtn.disabled = false;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        return;
+    }
+
+    // Portal: generar enlace
+    if (e.target.closest('#portal-generate-btn')) {
+        const btn = document.getElementById('portal-generate-btn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span><span class="ml-2">Generando...</span>';
+        try {
+            const { url, expiresAt } = await generarLinkPortal(leadId);
+            const result = document.getElementById('portal-link-result');
+            document.getElementById('portal-link-url').value = url;
+            document.getElementById('portal-link-exp').textContent = new Date(expiresAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+            result.classList.remove('hidden');
+            if (modalBody.dataset.leadPhone) {
+                document.getElementById('portal-send-wa-btn').classList.remove('hidden');
+            }
+            // Copiar automáticamente al generar — el flujo típico es copiar y pegar
+            try { await navigator.clipboard.writeText(url); } catch {}
+            lucide.createIcons();
+        } catch (err) {
+            alert("No se pudo generar el enlace: " + (err.message || err));
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            lucide.createIcons();
+        }
+        return;
+    }
+
+    // Portal: copiar enlace al portapapeles
+    if (e.target.closest('#portal-link-copy')) {
+        const url = document.getElementById('portal-link-url').value;
+        try {
+            await navigator.clipboard.writeText(url);
+            const btn = document.getElementById('portal-link-copy');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i><span>Copiado</span>';
+            lucide.createIcons();
+            setTimeout(() => { btn.innerHTML = orig; lucide.createIcons(); }, 1500);
+        } catch {
+            document.getElementById('portal-link-url').select();
+            document.execCommand('copy');
+        }
+        return;
+    }
+
+    // Portal: enviar enlace por WhatsApp al lead
+    if (e.target.closest('#portal-send-wa-btn')) {
+        const url = document.getElementById('portal-link-url').value;
+        const phone = modalBody.dataset.leadPhone;
+        if (!phone || !url) return;
+        const btn = document.getElementById('portal-send-wa-btn');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span><span class="ml-2">Enviando...</span>';
+        const message = `Hola, le compartimos su portal seguro de HomeLoans.mx para ver el estado de su expediente y subir documentos pendientes. El enlace es válido por 48 horas:\n\n${url}`;
+        try {
+            await sendWhatsAppFromCRM(phone, message, leadId, false);
+            btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Enviado</span>';
+            lucide.createIcons();
+            setTimeout(() => { btn.disabled = false; btn.innerHTML = orig; lucide.createIcons(); }, 2000);
+        } catch (err) {
+            alert("No se pudo enviar: " + (err.message || err));
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            lucide.createIcons();
+        }
+        return;
+    }
 
     // Chat: plantilla rápida
     const tplBtn = e.target.closest('.chat-template');
@@ -1442,6 +1654,71 @@ exportCsvBtn.addEventListener('click', () => {
     link.click();
     document.body.removeChild(link);
 });
+
+// ==================== BACKFILL DOCS HUÉRFANOS ====================
+// Llama /api/backfill-docs para reasociar archivos en leads/unclaimed/
+// a sus leads correctos cruzando timestamp con whatsapp_sessions.
+// Procesa un batch de ~8 archivos por invocación (límite de timeout de
+// Vercel); si sobran, re-llamar.
+
+const backfillBtn = document.getElementById('backfill-docs-btn');
+if (backfillBtn) {
+    backfillBtn.addEventListener('click', async () => {
+        if (!auth.currentUser) { alert("Debes iniciar sesión primero."); return; }
+        if (!confirm("¿Sincronizar documentos huérfanos de WhatsApp?\n\nEsto escanea Storage por archivos sin lead asignado y los asocia al cliente correcto cruzando el timestamp con los mensajes del chat.")) return;
+
+        const originalHtml = backfillBtn.innerHTML;
+        backfillBtn.disabled = true;
+        backfillBtn.innerHTML = '<span class="spinner"></span><span class="ml-1">Sincronizando...</span>';
+
+        let totalReassigned = 0;
+        let totalScanned = 0;
+        const allUnmatched = [];
+        const allErrors = [];
+
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            // Loop hasta que remaining=0 o pasen 5 batches (protección)
+            for (let batch = 0; batch < 5; batch++) {
+                const resp = await fetch('/api/backfill-docs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + idToken,
+                    },
+                    body: JSON.stringify({ maxFiles: 8 }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Error ' + resp.status);
+                totalScanned += data.scanned || 0;
+                totalReassigned += data.reassigned || 0;
+                if (Array.isArray(data.unmatched)) allUnmatched.push(...data.unmatched);
+                if (Array.isArray(data.errors)) allErrors.push(...data.errors);
+                if (!data.remaining || data.remaining === 0) break;
+            }
+
+            let summary = `✅ Escaneados: ${totalScanned}\n✅ Reasociados: ${totalReassigned}`;
+            if (allUnmatched.length) summary += `\n⚠️  Sin match: ${allUnmatched.length}`;
+            if (allErrors.length) summary += `\n❌ Errores: ${allErrors.length}`;
+            if (allUnmatched.length) {
+                summary += `\n\nSin match (revisar en Storage):`;
+                allUnmatched.slice(0, 10).forEach(u => {
+                    summary += `\n  • ${u.storagePath} (${u.reason || 'sin razón'})`;
+                });
+                if (allUnmatched.length > 10) summary += `\n  ... y ${allUnmatched.length - 10} más`;
+            }
+            alert(summary);
+            console.log('[BACKFILL] Resultado completo:', { totalScanned, totalReassigned, unmatched: allUnmatched, errors: allErrors });
+        } catch (err) {
+            console.error('[BACKFILL] Falló:', err);
+            alert('Error al sincronizar: ' + (err.message || err));
+        } finally {
+            backfillBtn.disabled = false;
+            backfillBtn.innerHTML = originalHtml;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    });
+}
 </script>
 </body>
 </html>
