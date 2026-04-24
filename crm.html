@@ -238,6 +238,9 @@ let app;
 if (!getApps().length) { app = initializeApp(firebaseConfig); } else { app = getApps()[0]; }
 const auth = getAuth(app);
 const db = getFirestore(app);
+// Exposición mínima para scripts admin one-shot (ej. /api/admin-set-cors).
+// No expone secretos: solo el objeto auth del SDK modular.
+window.__auth = auth;
 lucide.createIcons();
 
 // --- DOM refs ---
