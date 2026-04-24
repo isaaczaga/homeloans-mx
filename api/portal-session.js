@@ -42,6 +42,12 @@ try {
           clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
           privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
         }),
+        // Incluido para que las otras funciones que importan este módulo
+        // (solicitar-upload, confirmar-upload) reciban una app con default
+        // bucket configurado — sin esto, getStorage(app).bucket() falla.
+        storageBucket:
+          process.env.FIREBASE_ADMIN_STORAGE_BUCKET ||
+          process.env.FIREBASE_STORAGE_BUCKET,
       });
   db = getFirestore(app);
 } catch (e) {

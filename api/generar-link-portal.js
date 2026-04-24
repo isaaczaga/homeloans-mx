@@ -34,6 +34,13 @@ try {
           clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
           privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
         }),
+        // Incluido porque webhook.js y guardar-expediente.js importan este
+        // módulo y, al correrse antes, crean la app compartida que ellos
+        // luego reutilizan para Storage. Sin bucket aquí, getStorage().bucket()
+        // falla en esos endpoints.
+        storageBucket:
+          process.env.FIREBASE_ADMIN_STORAGE_BUCKET ||
+          process.env.FIREBASE_STORAGE_BUCKET,
       });
   db = getFirestore(app);
 } catch (e) {
