@@ -871,7 +871,10 @@ function updatePauseUI(agentPausedUntil) {
         }
     }
     if (unpauseBtn) unpauseBtn.classList.toggle('hidden', !isPaused);
-    if (pauseToggle) pauseToggle.checked = !!isPaused;
+    // El toggle expresa la INTENCIÓN del agente para el próximo mensaje,
+    // no el estado actual. Si reflejamos `isPaused` aquí, se crea un feedback
+    // loop: bot pausado → toggle ON → siguiente envío re-pausa → toggle queda ON.
+    // El estado actual ya se comunica con `pausedEl` y `unpauseBtn` arriba.
 }
 
 async function markChatAsRead(sessionId, leadId) {

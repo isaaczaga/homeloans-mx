@@ -11,6 +11,8 @@
 
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import twilio from "twilio";
+import { maybeAlertAgent } from "../lib/lead-alerts.js";
 
 // ── Firebase Admin SDK (singleton) ──────────────────────────
 let db;
@@ -97,6 +99,28 @@ export default async function handler(req, res) {
       const docRef = await leadsRef.add(payload);
       docId = docRef.id;
       console.log(`[FORM] Lead creado: ${docId} — ${payload.fullName} (${payload.phone})`);
+    }
+
+    // Alerta al agente si el lead ya califica desde el form (no bloqueante).
+    try {
+      const hasTwilio =
+        process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        process.env.TWILIO_WHATSAPP_NUMBER;
+      if (hasTwilio && process.env.AGENT_NOTIFICATION_PHONE) {
+        const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        const leadSnap = await leadsRef.doc(docId).get();
+        const leadData = leadSnap.exists ? leadSnap.data() : payload;
+        await maybeAlertAgent({
+          twilioClient,
+          db,
+          leadId: docId,
+          lead: leadData,
+          trigger: "form web",
+        });
+      }
+    } catch (e) {
+      console.warn("[FORM] alerta al agente falló (no bloqueante):", e.message);
     }
 
     return res.status(200).json({

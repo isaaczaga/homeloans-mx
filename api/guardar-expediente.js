@@ -18,6 +18,7 @@ import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import twilio from "twilio";
 import { signPortalToken } from "./generar-link-portal.js";
+import { maybeAlertAgent } from "../lib/lead-alerts.js";
 
 // Normaliza número a formato WhatsApp de Twilio
 function normalizeWhatsAppNumber(phone) {
@@ -300,6 +301,29 @@ Para avanzar con tu crédito hipotecario, por favor envíanos por este medio los
       }
     } else if (expediente.expedienteProgreso.completado && yaEstabaCompletado) {
       console.log(`[EXP] Re-submit detectado en lead ${leadId} — omitimos WhatsApp automático (ya se envió la primera vez).`);
+    }
+
+    // Alerta al agente si el lead califica al completar expediente (no bloqueante).
+    if (expediente.expedienteProgreso.completado && !yaEstabaCompletado) {
+      try {
+        const hasTwilio =
+          process.env.TWILIO_ACCOUNT_SID &&
+          process.env.TWILIO_AUTH_TOKEN &&
+          process.env.TWILIO_WHATSAPP_NUMBER;
+        if (hasTwilio && process.env.AGENT_NOTIFICATION_PHONE) {
+          const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+          const mergedLead = { ...currentLeadData, ...expediente };
+          await maybeAlertAgent({
+            twilioClient,
+            db,
+            leadId,
+            lead: mergedLead,
+            trigger: "expediente completo",
+          });
+        }
+      } catch (e) {
+        console.warn("[EXP] alerta al agente falló (no bloqueante):", e.message);
+      }
     }
 
     return res.status(200).json({
