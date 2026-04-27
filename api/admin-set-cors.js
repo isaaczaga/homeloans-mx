@@ -82,18 +82,60 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Token inválido" });
   }
 
+  // Diagnóstico: probamos varios nombres candidatos porque proyectos
+  // recientes de Firebase usan ".firebasestorage.app" en vez de ".appspot.com".
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || "";
+  const envBucket =
+    process.env.FIREBASE_ADMIN_STORAGE_BUCKET ||
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    "";
+  const candidates = Array.from(new Set([
+    envBucket,
+    `${projectId}.firebasestorage.app`,
+    `${projectId}.appspot.com`,
+  ].filter(Boolean)));
+
+  const storage = getStorage(app);
+  const probeResults = [];
+  let target = null;
+
+  for (const name of candidates) {
+    try {
+      const b = storage.bucket(name);
+      const [exists] = await b.exists();
+      probeResults.push({ name, exists });
+      if (exists && !target) target = b;
+    } catch (e) {
+      probeResults.push({ name, error: e.message });
+    }
+  }
+
+  if (!target) {
+    console.error("[ADMIN-CORS] Ningún bucket candidato existe:", probeResults);
+    return res.status(404).json({
+      error: "No se encontró el bucket de Storage. Revisa env vars o crea el bucket en Firebase Console.",
+      projectId,
+      envBucket,
+      probed: probeResults,
+    });
+  }
+
   try {
-    const bucket = getStorage(app).bucket();
-    await bucket.setCorsConfiguration(corsConfig);
-    const [metadata] = await bucket.getMetadata();
-    console.log("[ADMIN-CORS] CORS actualizado en", bucket.name);
+    await target.setCorsConfiguration(corsConfig);
+    const [metadata] = await target.getMetadata();
+    console.log("[ADMIN-CORS] CORS actualizado en", target.name);
     return res.status(200).json({
       ok: true,
-      bucket: bucket.name,
+      bucket: target.name,
       cors: metadata.cors || null,
+      probed: probeResults,
     });
   } catch (e) {
-    console.error("[ADMIN-CORS] Error:", e.message);
-    return res.status(500).json({ error: e.message });
+    console.error("[ADMIN-CORS] setCors error:", e.message);
+    return res.status(500).json({
+      error: e.message,
+      bucketTried: target.name,
+      probed: probeResults,
+    });
   }
 }
