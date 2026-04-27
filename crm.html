@@ -1331,6 +1331,7 @@ function openModal(leadData, leadId) {
     modalBody.innerHTML = html;
     modalBody.dataset.leadId = leadId;
     modalBody.dataset.leadPhone = leadData.phone || '';
+    modalBody.dataset.leadName = leadData.fullName || '';
     lucide.createIcons();
     modal.classList.remove('hidden');
     setTimeout(() => {
@@ -1372,21 +1373,34 @@ async function generarLinkPortal(leadId) {
 
 // Envío de mensaje WhatsApp desde el CRM.
 // Si pauseBot=true, el bot queda silenciado 24h. Por defecto sigue activo.
-async function sendWhatsAppFromCRM(phone, message, leadId, pauseBot = false) {
+async function sendWhatsAppFromCRM(phone, message, leadId, pauseBot = false, extra = {}) {
     if (!auth.currentUser) throw new Error("No autenticado");
     const idToken = await auth.currentUser.getIdToken();
+    const body = { leadId, phone, message, pauseBot };
+    // extra.contentSid + extra.contentVariables permiten enviar vía plantilla
+    // pre-aprobada (Twilio Content API) cuando estamos fuera de la ventana
+    // de 24h. El `message` se sigue enviando porque se persiste en el log
+    // del CRM como texto renderizado (lo que verá el cliente).
+    if (extra.contentSid) body.contentSid = extra.contentSid;
+    if (extra.contentVariables) body.contentVariables = extra.contentVariables;
     const resp = await fetch('/api/send-whatsapp', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ leadId, phone, message, pauseBot }),
+        body: JSON.stringify(body),
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Error ${resp.status}`);
     return data;
 }
+
+// Content SID de la plantilla WhatsApp "portal_link_homeloans" (Twilio).
+// Variables: {{1}}=nombre, {{2}}=url. Necesaria porque el envío del enlace
+// del portal puede ocurrir fuera de la ventana de 24h → freeform falla
+// con error 63016.
+const PORTAL_LINK_TEMPLATE_SID = 'HX508ce5a75ec63db6830f4dd8d98139bf';
 
 // Modal interactions (delegated)
 modalBody.addEventListener('click', async (e) => {
@@ -1484,9 +1498,19 @@ modalBody.addEventListener('click', async (e) => {
         const orig = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span><span class="ml-2">Enviando...</span>';
-        const message = `Hola, le compartimos su portal seguro de HomeLoans.mx para ver el estado de su expediente y subir documentos pendientes. El enlace es válido por 48 horas:\n\n${url}`;
+        // Usamos la plantilla "portal_link_homeloans" — freeform fallaría
+        // con error 63016 si el lead está fuera de la ventana de 24h.
+        // Variables: {{1}}=primer nombre, {{2}}=URL firmada del portal.
+        const fullName = modalBody.dataset.leadName || '';
+        const firstName = (fullName.trim().split(/\s+/)[0]) || 'hola';
+        // Texto renderizado que coincide con el body de la plantilla — se
+        // guarda en el hilo del CRM para que el agente vea qué se mandó.
+        const renderedMessage = `Hola ${firstName}, le compartimos su portal seguro de HomeLoans.mx para ver el estado de su expediente y subir documentos pendientes. El enlace es válido 48 horas: ${url}`;
         try {
-            await sendWhatsAppFromCRM(phone, message, leadId, false);
+            await sendWhatsAppFromCRM(phone, renderedMessage, leadId, false, {
+                contentSid: PORTAL_LINK_TEMPLATE_SID,
+                contentVariables: { "1": firstName, "2": url },
+            });
             btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Enviado</span>';
             lucide.createIcons();
             setTimeout(() => { btn.disabled = false; btn.innerHTML = orig; lucide.createIcons(); }, 2000);
