@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#059669"/>
+  <path d="M256 112 L120 232 L120 400 L208 400 L208 296 L304 296 L304 400 L392 400 L392 232 Z" fill="#ffffff" opacity="0.95"/>
+  <rect x="232" y="320" width="48" height="56" fill="#059669"/>
+  <text x="256" y="468" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif" font-size="56" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">CRM</text>
+</svg>

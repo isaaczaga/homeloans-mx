@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4J1ZFHL3N1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-4J1ZFHL3N1');
+    </script>
+    <!-- Meta Pixel -->
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '2219149935562688');
+    fbq('init', '1460612115119068');
+    fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=2219149935562688&ev=PageView&noscript=1"
+    /></noscript>
+    <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=1460612115119068&ev=PageView&noscript=1"
+    /></noscript>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Mi Portal - HomeLoans.mx</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .spinner { border: 2px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #059669; width: 16px; height: 16px; animation: spin 0.8s linear infinite; display: inline-block; }
+        .spinner.white { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .progress-bar { transition: width 0.2s ease; }
+        .doc-card { transition: all 0.2s ease; }
+        .doc-card.uploading { border-color: #059669; background: #ecfdf5; }
+        .doc-card.uploaded { border-color: #10b981; background: #f0fdf4; }
+        .doc-card.error { border-color: #dc2626; background: #fef2f2; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-2">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12H5V20H19V12H22L12 2Z" fill="#059669" fill-opacity="0.2"/><path d="M12 2L2 12H5V20H19V12H22L12 2Z" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12V16H15V10L9 12Z" fill="#059669"/></svg>
+                <span class="text-xl font-bold text-gray-800">HomeLoans<span class="text-emerald-600">.mx</span></span>
+            </a>
+            <a href="https://wa.me/525610074116" target="_blank" class="text-sm text-gray-600 hover:text-emerald-600 flex items-center">
+                <i data-lucide="message-circle" class="w-4 h-4 mr-1"></i>Ayuda por WhatsApp
+            </a>
+        </nav>
+    </header>
+
+    <main class="py-8">
+        <div class="container mx-auto px-4 max-w-3xl">
+
+            <!-- Loader inicial -->
+            <div id="loader-panel" class="bg-white rounded-2xl shadow-xl p-12 text-center">
+                <div class="spinner mx-auto" style="width: 36px; height: 36px;"></div>
+                <p class="mt-4 text-gray-600">Cargando tu expediente…</p>
+            </div>
+
+            <!-- Error -->
+            <div id="error-panel" class="hidden bg-white rounded-2xl shadow-xl p-8 text-center">
+                <div class="bg-red-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-circle" class="text-red-600 w-8 h-8"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900">Enlace no válido</h2>
+                <p id="error-text" class="mt-3 text-gray-600">El enlace que usaste no es válido o ya expiró.</p>
+                <p class="mt-4 text-sm text-gray-500">Pide a tu asesor que te mande un enlace nuevo.</p>
+                <a href="https://wa.me/525610074116" target="_blank" class="mt-6 inline-flex items-center bg-green-500 text-white font-semibold px-6 py-3 rounded-lg hover:bg-green-600 transition">
+                    <i data-lucide="message-circle" class="w-5 h-5 mr-2"></i>Contactar a mi asesor
+                </a>
+            </div>
+
+            <!-- Portal principal -->
+            <div id="portal-panel" class="hidden space-y-5">
+
+                <!-- Saludo + estado -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
+                                Hola, <span id="lead-nombre">—</span>
+                            </h1>
+                            <p class="text-sm text-gray-500 mt-1" id="lead-telefono-masc">—</p>
+                        </div>
+                        <span id="estado-badge" class="badge bg-gray-100 text-gray-700">—</span>
+                    </div>
+
+                    <!-- Próximo paso -->
+                    <div id="proximo-paso-banner" class="mt-5 bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start">
+                        <i data-lucide="compass" class="text-emerald-600 w-5 h-5 mr-3 mt-0.5 flex-shrink-0"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-emerald-900">Próximo paso</p>
+                            <p id="proximo-paso-texto" class="text-sm text-emerald-800 mt-1">—</p>
+                        </div>
+                    </div>
+
+                    <!-- Botón ir a expediente (condicional) -->
+                    <a id="expediente-cta" href="#" class="hidden mt-4 bg-emerald-600 text-white font-semibold px-5 py-3 rounded-lg hover:bg-emerald-700 transition inline-flex items-center justify-center w-full sm:w-auto">
+                        <i data-lucide="edit-3" class="w-4 h-4 mr-2"></i>Completar expediente
+                    </a>
+                </div>
+
+                <!-- Aviso perfil no definido (condicional) -->
+                <div id="perfil-advertencia" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start">
+                    <i data-lucide="info" class="text-amber-700 w-5 h-5 mr-3 mt-0.5 flex-shrink-0"></i>
+                    <p id="perfil-advertencia-texto" class="text-sm text-amber-900">—</p>
+                </div>
+
+                <!-- Checklist de documentos -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                    <div class="flex items-start justify-between mb-5">
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">Documentos</h2>
+                            <p class="text-sm text-gray-500 mt-1" id="docs-progreso-texto">—</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-emerald-600" id="docs-completados">0</div>
+                            <div class="text-xs text-gray-500" id="docs-total">de —</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-5 bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div id="docs-progress-bar" class="h-full bg-emerald-500 progress-bar" style="width: 0%"></div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mb-4 flex items-center">
+                        <i data-lucide="lock" class="w-3.5 h-3.5 mr-1"></i>
+                        Solo archivos PDF, máximo 20 MB por archivo. Conexión cifrada de extremo a extremo.
+                    </p>
+
+                    <div id="docs-list" class="space-y-3"></div>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-white rounded-2xl shadow-xl p-5 text-center text-xs text-gray-500">
+                    HomeLoans.mx © 2026 · <a href="aviso-de-privacidad.html" class="underline hover:text-emerald-700">Aviso de Privacidad</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- WhatsApp floating -->
+    <a href="https://wa.me/525610074116?text=Hola,%20tengo%20una%20duda%20sobre%20mi%20expediente"
+       target="_blank"
+       onclick="gtag('event', 'portal_whatsapp_click'); fbq('track', 'Contact');"
+       class="fixed bottom-6 right-6 bg-green-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-transform transform hover:scale-110 z-50"
+       aria-label="Contactar por WhatsApp">
+        <i data-lucide="message-circle" class="w-7 h-7"></i>
+    </a>
+
+    <script>
+        lucide.createIcons();
+
+        const MAX_BYTES = 20 * 1024 * 1024;
+
+        // Token del query string
+        const token = new URLSearchParams(window.location.search).get('t');
+
+        const loaderPanel  = document.getElementById('loader-panel');
+        const errorPanel   = document.getElementById('error-panel');
+        const errorText    = document.getElementById('error-text');
+        const portalPanel  = document.getElementById('portal-panel');
+
+        const badgeEstado        = {
+            'Recibida':            'bg-blue-100 text-blue-800',
+            'En Seguimiento':      'bg-indigo-100 text-indigo-800',
+            'Propuesta Enviada':   'bg-purple-100 text-purple-800',
+            'En Proceso':          'bg-amber-100 text-amber-800',
+            'Expediente Completo': 'bg-emerald-100 text-emerald-800',
+            'Cliente Logrado':     'bg-green-100 text-green-800',
+            'Archivado':           'bg-gray-100 text-gray-700',
+        };
+
+        function showError(msg) {
+            loaderPanel.classList.add('hidden');
+            portalPanel.classList.add('hidden');
+            errorPanel.classList.remove('hidden');
+            errorText.textContent = msg;
+            lucide.createIcons();
+        }
+
+        async function loadSession() {
+            if (!token) {
+                return showError('Este enlace no trae token. Pide uno nuevo a tu asesor.');
+            }
+
+            try {
+                const resp = await fetch('/api/portal-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                });
+                const data = await resp.json().catch(() => ({}));
+
+                if (!resp.ok || !data.success) {
+                    return showError(data.error || 'No pudimos cargar tu expediente.');
+                }
+
+                renderPortal(data);
+            } catch (err) {
+                console.error('[PORTAL] loadSession failed:', err);
+                showError('Error de conexión. Intenta de nuevo.');
+            }
+        }
+
+        function renderPortal(session) {
+            // Lead
+            document.getElementById('lead-nombre').textContent = session.lead.nombre || 'cliente';
+            document.getElementById('lead-telefono-masc').textContent = session.lead.telefonoMascara
+                ? `Expediente asociado a ${session.lead.telefonoMascara}`
+                : '';
+
+            // Estado badge
+            const estadoBadge = document.getElementById('estado-badge');
+            estadoBadge.textContent = session.lead.estado || 'En proceso';
+            estadoBadge.className = 'badge ' + (badgeEstado[session.lead.estado] || 'bg-gray-100 text-gray-700');
+
+            // Próximo paso
+            document.getElementById('proximo-paso-texto').textContent = session.proximoPaso;
+
+            // Expediente CTA
+            const expCta = document.getElementById('expediente-cta');
+            if (session.expedienteLink) {
+                expCta.href = session.expedienteLink;
+                expCta.classList.remove('hidden');
+            }
+
+            // Advertencia perfil
+            if (session.advertenciaPerfil) {
+                document.getElementById('perfil-advertencia').classList.remove('hidden');
+                document.getElementById('perfil-advertencia-texto').textContent = session.advertenciaPerfil;
+            }
+
+            // Checklist
+            renderChecklist(session.checklist);
+
+            // Mostrar
+            loaderPanel.classList.add('hidden');
+            portalPanel.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function renderChecklist(checklist) {
+            const list = document.getElementById('docs-list');
+            list.innerHTML = '';
+
+            const required = checklist.filter(c => c.required);
+            const completados = required.filter(c => c.subido).length;
+            document.getElementById('docs-completados').textContent = completados;
+            document.getElementById('docs-total').textContent = `de ${required.length} obligatorios`;
+            document.getElementById('docs-progreso-texto').textContent = completados === required.length
+                ? 'Tienes todos los documentos obligatorios subidos.'
+                : `Te faltan ${required.length - completados} documento${required.length - completados === 1 ? '' : 's'} obligatorio${required.length - completados === 1 ? '' : 's'}.`;
+
+            const pct = required.length ? Math.round((completados / required.length) * 100) : 0;
+            document.getElementById('docs-progress-bar').style.width = pct + '%';
+
+            for (const item of checklist) {
+                const card = document.createElement('div');
+                card.className = 'doc-card border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3';
+                card.dataset.key = item.key;
+                card.innerHTML = renderDocCardInner(item);
+                list.appendChild(card);
+            }
+            lucide.createIcons();
+
+            // Attach handlers
+            list.querySelectorAll('input[type="file"]').forEach(input => {
+                input.addEventListener('change', onFileSelected);
+            });
+        }
+
+        function renderDocCardInner(item) {
+            const reqChip = item.required
+                ? '<span class="text-xs font-semibold text-red-600">Obligatorio</span>'
+                : '<span class="text-xs text-gray-500">Opcional</span>';
+
+            const onlyIf = item.onlyIf
+                ? `<span class="text-xs text-amber-700 ml-2">${item.onlyIf}</span>`
+                : '';
+
+            if (item.subido) {
+                const source = item.source === 'portal' ? 'Subido desde este portal' : 'Recibido por WhatsApp';
+                return `
+                    <div class="flex items-center flex-1 min-w-0">
+                        <div class="bg-emerald-100 rounded-lg w-10 h-10 flex items-center justify-center mr-3 flex-shrink-0">
+                            <i data-lucide="check-circle-2" class="text-emerald-600 w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-800 text-sm truncate">${escapeHtml(item.label)}</p>
+                            <p class="text-xs text-gray-500">${source}</p>
+                        </div>
+                    </div>
+                    <button type="button" class="replace-btn text-xs text-emerald-700 hover:text-emerald-900 font-semibold flex items-center"
+                            data-key="${item.key}">
+                        <i data-lucide="refresh-ccw" class="w-3.5 h-3.5 mr-1"></i>Reemplazar
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="flex items-center flex-1 min-w-0">
+                    <div class="bg-gray-100 rounded-lg w-10 h-10 flex items-center justify-center mr-3 flex-shrink-0">
+                        <i data-lucide="file-text" class="text-gray-500 w-5 h-5"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-semibold text-gray-800 text-sm">
+                            ${escapeHtml(item.label)}
+                            ${onlyIf}
+                        </p>
+                        <p class="text-xs">${reqChip}</p>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 w-full sm:w-auto">
+                    <label class="cursor-pointer inline-flex items-center bg-emerald-100 text-emerald-700 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-200 transition text-sm w-full justify-center sm:w-auto"
+                           data-key="${item.key}">
+                        <i data-lucide="upload-cloud" class="w-4 h-4 mr-2"></i>Subir PDF
+                        <input type="file" accept="application/pdf" class="hidden" data-key="${item.key}">
+                    </label>
+                </div>
+                <div class="upload-progress hidden w-full">
+                    <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
+                        <span class="upload-status">Subiendo…</span>
+                        <span class="upload-pct">0%</span>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-emerald-500 h-full progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(s) {
+            return String(s || '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        async function onFileSelected(e) {
+            const input = e.target;
+            const file = input.files?.[0];
+            const key = input.dataset.key;
+            if (!file || !key) return;
+
+            const card = input.closest('.doc-card');
+
+            // Validaciones cliente
+            if (file.type !== 'application/pdf') {
+                flashError(card, 'Solo se aceptan archivos PDF.');
+                input.value = '';
+                return;
+            }
+            if (file.size > MAX_BYTES) {
+                flashError(card, `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. Máximo 20 MB.`);
+                input.value = '';
+                return;
+            }
+
+            await uploadDoc(card, key, file);
+            input.value = '';
+        }
+
+        function flashError(card, msg) {
+            card.classList.add('error');
+            const orig = card.innerHTML;
+            card.innerHTML = `
+                <div class="flex items-center flex-1">
+                    <i data-lucide="alert-circle" class="text-red-600 w-5 h-5 mr-3"></i>
+                    <p class="text-sm text-red-800">${escapeHtml(msg)}</p>
+                </div>
+                <button class="text-xs text-red-700 underline" onclick="location.reload()">Reintentar</button>
+            `;
+            lucide.createIcons();
+            setTimeout(() => { card.classList.remove('error'); card.innerHTML = orig; lucide.createIcons(); attachCardHandlers(card); }, 5000);
+        }
+
+        function attachCardHandlers(card) {
+            const input = card.querySelector('input[type="file"]');
+            if (input) input.addEventListener('change', onFileSelected);
+        }
+
+        async function uploadDoc(card, key, file) {
+            card.classList.add('uploading');
+            showProgressUI(card, 'Preparando…', 5);
+
+            // 1) Pedir signed URL
+            let solicit;
+            try {
+                const resp = await fetch('/api/solicitar-upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token,
+                        tipo: key,
+                        fileSize: file.size,
+                        contentType: 'application/pdf',
+                    }),
+                });
+                solicit = await resp.json().catch(() => ({}));
+                if (!resp.ok || !solicit.success) {
+                    throw new Error(solicit.error || 'No se pudo preparar la subida.');
+                }
+            } catch (err) {
+                console.error('[PORTAL] solicitar-upload failed:', err);
+                flashError(card, err.message || 'Error al preparar la subida.');
+                return;
+            }
+
+            // 2) PUT directo a Storage
+            try {
+                await putToStorage(solicit.uploadUrl, file, (pct) => {
+                    showProgressUI(card, 'Subiendo…', 5 + Math.round(pct * 0.85));
+                });
+            } catch (err) {
+                console.error('[PORTAL] PUT failed:', err);
+                flashError(card, 'Error al subir el archivo. Verifica tu conexión e intenta de nuevo.');
+                return;
+            }
+
+            // 3) Confirmar
+            showProgressUI(card, 'Verificando…', 95);
+            try {
+                const resp = await fetch('/api/confirmar-upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token,
+                        tipo: key,
+                        storagePath: solicit.storagePath,
+                    }),
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.success) {
+                    throw new Error(data.error || 'El archivo no pasó la verificación.');
+                }
+            } catch (err) {
+                console.error('[PORTAL] confirmar-upload failed:', err);
+                flashError(card, err.message || 'Error al verificar el archivo.');
+                return;
+            }
+
+            // 4) Recargar sesión completa para reflejar progreso real del checklist
+            showProgressUI(card, '¡Listo!', 100);
+            await loadSession();
+            gtag('event', 'portal_doc_uploaded', { tipo: key });
+        }
+
+        function showProgressUI(card, statusText, pct) {
+            const progress = card.querySelector('.upload-progress');
+            if (!progress) return;
+            progress.classList.remove('hidden');
+            progress.querySelector('.upload-status').textContent = statusText;
+            progress.querySelector('.upload-pct').textContent = pct + '%';
+            progress.querySelector('.progress-bar').style.width = pct + '%';
+        }
+
+        function putToStorage(url, file, onProgress) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', url, true);
+                xhr.setRequestHeader('Content-Type', 'application/pdf');
+                xhr.upload.onprogress = (evt) => {
+                    if (evt.lengthComputable && onProgress) {
+                        onProgress((evt.loaded / evt.total) * 100);
+                    }
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve();
+                    else reject(new Error(`Storage PUT failed: ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(file);
+            });
+        }
+
+        // Delegado: botón "Reemplazar" abre el file picker del mismo tipo
+        document.addEventListener('click', (e) => {
+            const replaceBtn = e.target.closest('.replace-btn');
+            if (!replaceBtn) return;
+            const key = replaceBtn.dataset.key;
+            // Crear input efímero para seleccionar
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/pdf';
+            input.dataset.key = key;
+            input.addEventListener('change', onFileSelected);
+            input.click();
+        });
+
+        // Arranque
+        loadSession();
+    </script>
+</body>
+</html>

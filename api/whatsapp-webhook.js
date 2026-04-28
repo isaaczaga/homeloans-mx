@@ -14,6 +14,7 @@ import twilio from "twilio";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { signPortalToken } from "./generar-link-portal.js";
 
 // ── Firebase Admin SDK ──────────────────────────────────────
 let db, bucket;
@@ -104,14 +105,22 @@ LEAD_DATA:{"loanPurpose":"refinanciamiento","propertyValue":NUMERO_SIN_COMAS,"co
 Solo incluye LEAD_DATA cuando tengas todos los valores confirmados para el tipo de operación.`;
 
 const MAX_HISTORY = 20;
-const CLASSIFY_PROMPT = `Analiza este documento mexicano relacionado con un trámite hipotecario. Clasifícalo en una de estas categorías:
-- "INE" (credencial de elector)
-- "comprobante_ingresos" (recibo de nómina, carta patronal, constancia de sueldo)
-- "estado_cuenta" (bancario, de inversión, de afore)
-- "comprobante_domicilio" (CFE, Telmex, predial, agua)
+const CLASSIFY_PROMPT = `Analiza este documento mexicano relacionado con un trámite hipotecario. Clasifícalo en UNA de estas categorías (usa EXACTAMENTE el slug entre comillas):
+- "INE" (credencial de elector del INE/IFE)
+- "curp" (constancia de CURP)
+- "acta_nacimiento" (acta de nacimiento)
+- "acta_matrimonio" (acta de matrimonio)
+- "carta_patronal" (carta de la empresa empleadora con antigüedad, puesto, sueldo)
+- "recibo_nomina" (recibo de nómina / CFDI de nómina)
+- "estado_cuenta" (estado de cuenta bancario, de inversión o afore PERSONAL; NO del crédito hipotecario)
+- "estado_cuenta_credito" (estado de cuenta del crédito hipotecario vigente)
+- "tabla_amortizacion" (tabla de amortización del crédito hipotecario)
+- "comprobante_domicilio" (CFE, Telmex, agua, predial, internet)
 - "escritura" (escritura pública de propiedad)
-- "identificacion_otra" (pasaporte, cédula profesional)
-- "rfc" (constancia de situación fiscal)
+- "rfc" (constancia de situación fiscal / CSF)
+- "declaracion_anual" (acuse de declaración anual del SAT)
+- "autorizacion_buro" (autorización firmada para consulta a buró de crédito)
+- "identificacion_otra" (pasaporte, cédula profesional, licencia)
 - "otro" (cualquier otro documento)
 
 Responde EXCLUSIVAMENTE con JSON válido (sin markdown, sin texto adicional):
@@ -226,20 +235,58 @@ function extractLeadData(text) {
 }
 
 // ── Expediente / documentos requeridos ──────────────────────
-// Lista canónica de documentos que componen el expediente hipotecario.
+// Checklist canónico para perfil ASALARIADO. Si el cliente es PFAE
+// (profesional con actividad empresarial / honorarios), el bot NO intenta
+// recolectar documentos: se pausa y escala a asesor humano.
 // Cada item tiene las `classifications` que cuentan como "recibido" si el
-// bot las subió vía el classifier de Claude.
-const REQUIRED_DOCS = [
-  { key: "INE",                  label: "INE vigente (ambos lados)",                classifications: ["INE", "identificacion_otra"] },
-  { key: "comprobante_ingresos", label: "Últimos 3 recibos de nómina o carta patronal", classifications: ["comprobante_ingresos"] },
-  { key: "estado_cuenta",        label: "Últimos 3 estados de cuenta bancarios",    classifications: ["estado_cuenta"] },
-  { key: "comprobante_domicilio",label: "Comprobante de domicilio reciente (CFE, Telmex, agua o predial)", classifications: ["comprobante_domicilio"] },
-  { key: "rfc",                  label: "Constancia de situación fiscal (CSF / RFC)", classifications: ["rfc"] },
+// classifier de Claude etiqueta el archivo con alguna de ellas.
+const REQUIRED_DOCS_ASALARIADO = [
+  { key: "INE",                 label: "INE vigente (AMBOS lados, frente y reverso)",                                  classifications: ["INE", "identificacion_otra"] },
+  { key: "curp",                label: "CURP actualizada",                                                             classifications: ["curp"] },
+  { key: "acta_nacimiento",     label: "Acta de nacimiento",                                                           classifications: ["acta_nacimiento"] },
+  { key: "recibos_nomina",      label: "Últimos 3 recibos de nómina (CFDI)",                                           classifications: ["recibo_nomina"] },
+  { key: "carta_patronal",      label: "Carta patronal reciente (antigüedad, puesto, sueldo bruto y neto)",            classifications: ["carta_patronal"] },
+  { key: "estado_cuenta",       label: "Últimos 3 estados de cuenta bancarios donde cae la nómina",                    classifications: ["estado_cuenta"] },
+  { key: "comprobante_domicilio",label: "Comprobante de domicilio reciente (no mayor a 3 meses: CFE, Telmex, agua o predial)", classifications: ["comprobante_domicilio"] },
+  { key: "rfc",                 label: "Constancia de situación fiscal (CSF / RFC)",                                   classifications: ["rfc"] },
+  { key: "declaracion_anual",   label: "Acuse de la última declaración anual del SAT",                                 classifications: ["declaracion_anual"] },
+  { key: "autorizacion_buro",   label: "Autorización firmada para consulta a buró de crédito (se la envío en PDF)",    classifications: ["autorizacion_buro"] },
 ];
 
+// Extras que aplican SOLO si la operación es refinanciamiento.
+const REQUIRED_DOCS_REFI_EXTRA = [
+  { key: "escritura",             label: "Escritura pública de la propiedad",                 classifications: ["escritura"] },
+  { key: "estado_cuenta_credito", label: "Último estado de cuenta del crédito hipotecario vigente", classifications: ["estado_cuenta_credito"] },
+  { key: "tabla_amortizacion",    label: "Tabla de amortización del crédito actual",          classifications: ["tabla_amortizacion"] },
+];
+
+// Extras condicionales: sólo si el cliente declara casado bajo sociedad
+// conyugal (bandera manual del asesor o inferida de la conversación).
+const REQUIRED_DOCS_CASADO_EXTRA = [
+  { key: "acta_matrimonio",     label: "Acta de matrimonio",                                                           classifications: ["acta_matrimonio"] },
+  { key: "ine_conyuge",         label: "INE del cónyuge (ambos lados)",                                                classifications: ["INE", "identificacion_otra"], /* nota: mismo classification que INE, el asesor verifica manualmente */ requiresManualReview: true },
+];
+
+// Detecta perfil laboral en un string libre. El bot lo emite con marker
+// PERFIL_LABORAL:asalariado  o  PERFIL_LABORAL:pfae  al final del mensaje.
+function extractPerfilLaboral(text) {
+  const marker = "PERFIL_LABORAL:";
+  const idx = text.indexOf(marker);
+  if (idx === -1) return { cleanText: text, perfilLaboral: null };
+  const cleanText = text.slice(0, idx).trim();
+  const rest = text.slice(idx + marker.length).trim().toLowerCase();
+  // Primer token alfabético
+  const m = rest.match(/^[a-záéíóúñ_]+/);
+  const val = m ? m[0] : "";
+  if (val === "asalariado" || val === "pfae") {
+    return { cleanText, perfilLaboral: val };
+  }
+  return { cleanText, perfilLaboral: null };
+}
+
 // Devuelve un resumen breve en español de los datos que ya tenemos en la
-// solicitud y la lista de documentos que aún faltan. Usado para inyectar
-// contexto al system prompt de Claude y evitar que pregunte datos ya dados.
+// solicitud y la lista de documentos que aún faltan (según perfil laboral
+// y propósito). Usado para inyectar contexto al system prompt de Claude.
 function buildSolicitudContext(leadData) {
   if (!leadData || typeof leadData !== "object") return null;
 
@@ -265,6 +312,18 @@ function buildSolicitudContext(leadData) {
   if (leadData.currentRate)   lines.push(`Tasa actual: ${leadData.currentRate}%`);
   if (leadData.currentBalance) lines.push(`Saldo pendiente: ${fmtMxn(leadData.currentBalance)}`);
 
+  // Perfil laboral (asalariado, pfae, o sin definir)
+  const perfil = leadData.perfilLaboral || null;
+  if (perfil) lines.push(`Perfil laboral: ${perfil === "asalariado" ? "Asalariado" : "PFAE (honorarios / actividad empresarial)"}`);
+
+  // Checklist aplica sólo si el perfil es asalariado
+  let checklist = [];
+  if (perfil === "asalariado") {
+    checklist = [...REQUIRED_DOCS_ASALARIADO];
+    if (leadData.loanPurpose === "refinanciamiento") checklist.push(...REQUIRED_DOCS_REFI_EXTRA);
+    if (leadData.estadoCivil === "casado_sociedad_conyugal") checklist.push(...REQUIRED_DOCS_CASADO_EXTRA);
+  }
+
   // Documentos ya recibidos
   const docsArr = Array.isArray(leadData.documentos) ? leadData.documentos : [];
   const receivedClassifications = new Set(
@@ -273,22 +332,19 @@ function buildSolicitudContext(leadData) {
 
   const received = [];
   const missing = [];
-  for (const req of REQUIRED_DOCS) {
+  for (const req of checklist) {
     const hit = req.classifications.some((c) => receivedClassifications.has(c));
     (hit ? received : missing).push(req.label);
   }
 
-  // Para refinanciamiento también pedimos la escritura
-  if (leadData.loanPurpose === "refinanciamiento") {
-    const hasEscritura = receivedClassifications.has("escritura");
-    (hasEscritura ? received : missing).push("Escritura pública de la propiedad");
-  }
-
   return {
     summary: lines.join("\n"),
+    perfilLaboral: perfil,
+    needsPerfilAsk: !perfil,          // Si no tenemos perfil, el bot debe preguntarlo primero
+    isPfae: perfil === "pfae",        // Si es PFAE, no pedir docs, escalar a asesor
     received,
     missing,
-    isComplete: missing.length === 0,
+    isComplete: perfil === "asalariado" && missing.length === 0,
   };
 }
 
@@ -384,12 +440,21 @@ async function classifyDocument(buffer, mimeType) {
 function friendlyClassificationLabel(c) {
   const map = {
     INE: "INE",
+    curp: "CURP",
+    acta_nacimiento: "acta de nacimiento",
+    acta_matrimonio: "acta de matrimonio",
+    carta_patronal: "carta patronal",
+    recibo_nomina: "recibo de nómina",
     comprobante_ingresos: "comprobante de ingresos",
     estado_cuenta: "estado de cuenta",
+    estado_cuenta_credito: "estado de cuenta del crédito hipotecario",
+    tabla_amortizacion: "tabla de amortización",
     comprobante_domicilio: "comprobante de domicilio",
     escritura: "escritura",
     identificacion_otra: "identificación",
-    rfc: "RFC",
+    rfc: "RFC / constancia de situación fiscal",
+    declaracion_anual: "acuse de declaración anual",
+    autorizacion_buro: "autorización de buró de crédito",
     otro: "documento",
   };
   return map[c] || "documento";
@@ -503,14 +568,20 @@ export default async function handler(req, res) {
 
   const botPaused = agentPausedUntil && agentPausedUntil > new Date();
 
-  // ── PASO 1b: Primer mensaje — enlazar a solicitud existente o crear lead ──
+  // ── PASO 1b: Enlazar chat a una solicitud por teléfono ──
   // CRÍTICO: el form web puede guardar el teléfono en múltiples formatos
   // (10 dígitos, 12 con "52", con "+52", con "1" móvil, etc). Intentamos
   // TODAS las variantes plausibles antes de crear un duplicado. Si por alguna
   // razón ninguna variante exacta matchea (p.ej. el form guardó con guiones),
   // escaneamos como fallback los últimos leads y canonicalizamos en memoria.
-  const isFirstMessage = messages.length === 0 && !crmDocId;
-  if (isFirstMessage) {
+  //
+  // IMPORTANTE: este bloque se ejecuta SIEMPRE que `crmDocId` esté vacío,
+  // no solo en el primer mensaje. Sesiones viejas creadas antes de este
+  // matching quedaron sin `crmDocId`; entonces los documentos PDF/imágenes
+  // que el cliente enviaba se subían a Storage pero no se adjuntaban al
+  // lead en Firestore — y por eso el CRM no los mostraba. Al re-intentar
+  // el match en cada mensaje, recuperamos esos casos retroactivamente.
+  if (!crmDocId) {
     try {
       const variants = phoneSearchVariants(fromNumber);
       const canonFrom = canonicalMxPhone(fromNumber);
@@ -560,6 +631,17 @@ export default async function handler(req, res) {
         });
         crmDocId = docRef.id;
         console.log(`[WH] PASO 1b OK — Lead inicial creado (no match por tel): ${crmDocId}`);
+      }
+
+      // Persistimos crmDocId a la sesión de inmediato para que no repitamos
+      // el lookup en cada mensaje futuro. Usamos `merge: true` para no pisar
+      // nada más del documento.
+      if (crmDocId) {
+        try {
+          await sessionRef.set({ crmDocId, phone: fromNumber }, { merge: true });
+        } catch (e) {
+          console.error("[WH] PASO 1b — no se pudo persistir crmDocId en sesión:", e.message);
+        }
       }
     } catch (e) {
       console.error("[WH] PASO 1b FAIL:", e.code, e.message, e.stack);
@@ -714,33 +796,65 @@ export default async function handler(req, res) {
 ${solicitudCtx.summary}`
       : "";
 
-    const docsBlock = solicitudCtx
-      ? (solicitudCtx.isComplete
-          ? `EXPEDIENTE DE DOCUMENTOS: COMPLETO. Ya recibimos todos los documentos requeridos. Si el cliente pregunta qué sigue, dile que el asesor está revisando su expediente y lo contactará en las próximas 24h.`
-          : `EXPEDIENTE DE DOCUMENTOS — PENDIENTE.
-Ya recibidos: ${solicitudCtx.received.length ? solicitudCtx.received.join("; ") : "ninguno todavía"}.
-Faltan: ${solicitudCtx.missing.join("; ")}.
+    // Ramificación principal: preguntar perfil / escalar PFAE / recolectar docs asalariado
+    let flujoBlock = "";
+    if (solicitudCtx?.needsPerfilAsk) {
+      flujoBlock = `FLUJO ACTUAL — PREGUNTAR PERFIL LABORAL (CRÍTICO, ES LO PRIMERO).
+Aún NO sabemos cómo comprueba ingresos este prospecto. Antes de hacer cualquier otra cosa, saluda por su nombre si lo tienes y hazle EXACTAMENTE esta pregunta, en UNA sola línea:
 
-TU OBJETIVO ES RECOLECTAR LOS DOCUMENTOS FALTANTES.
-- Si es el primer mensaje del día, saluda por su nombre (si lo tienes) y confirma que ya vimos su solicitud.
-- Luego pide UN documento a la vez, de forma conversacional y amable. Empieza por el primero de "Faltan".
-- Si el cliente envió un archivo, confírmale que lo recibiste e indica cuál es el siguiente documento pendiente.
-- Acepta PDF, JPG o PNG. Si la foto sale borrosa o cortada, pídela de nuevo amablemente.
-- Para INE, pide explícitamente AMBOS LADOS (frente y reverso).`)
-      : "";
+"Perfecto, para armar su expediente necesito saber cómo comprueba ingresos: ¿es asalariado (recibe nómina con CFDI) o PFAE (honorarios / actividad empresarial)?"
 
-    dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su solicitud de pre-calificación.
+Cuando el cliente responda, clasifica su respuesta:
+- Si menciona "nómina", "empleado", "asalariado", "trabajo en empresa", "me pagan sueldo" → emite PERFIL_LABORAL:asalariado
+- Si menciona "honorarios", "factura", "pfae", "freelance", "consultoría", "independiente", "mi negocio", "empresa propia", "accionista" → emite PERFIL_LABORAL:pfae
+
+INSTRUCCIÓN DE MARKER (el cliente NO lo verá):
+Al final de tu próxima respuesta, en una línea aparte, incluye:
+PERFIL_LABORAL:asalariado    (o)    PERFIL_LABORAL:pfae
+
+Solo emite el marker cuando estés seguro de la respuesta. Si es ambigua, pide clarificación.`;
+    } else if (solicitudCtx?.isPfae) {
+      flujoBlock = `FLUJO ACTUAL — PROSPECTO PFAE, ESCALAR A ASESOR HUMANO.
+Este prospecto comprueba ingresos como PFAE. Por la complejidad de su expediente (actas constitutivas, declaraciones anuales, estados financieros, etc.), NO vamos a recolectar documentos por WhatsApp. Responde EXACTAMENTE algo como:
+
+"Gracias. Como PFAE, su expediente requiere documentación especializada. Un asesor hipotecario senior de HomeLoans.mx lo contactará hoy mismo por este mismo WhatsApp para armar su expediente paso a paso. Mientras tanto, si tiene dudas puntuales, aquí estoy."
+
+Después de enviar ese mensaje, NO sigas pidiendo documentos ni hagas preguntas adicionales. Solo responde dudas puntuales si las hace.`;
+    } else if (solicitudCtx?.isComplete) {
+      flujoBlock = `FLUJO ACTUAL — EXPEDIENTE COMPLETO.
+Ya recibimos todos los documentos del expediente asalariado. Agradece y avisa que un asesor está revisando su expediente y lo contactará en las próximas 24h con la cotización formal. No pidas nada más.`;
+    } else if (solicitudCtx) {
+      flujoBlock = `FLUJO ACTUAL — RECOLECCIÓN DE DOCUMENTOS (ASALARIADO).
+
+YA RECIBIDOS: ${solicitudCtx.received.length ? solicitudCtx.received.join("; ") : "ninguno todavía"}.
+FALTAN: ${solicitudCtx.missing.join("; ")}.
+
+TU OBJETIVO: pedir UN documento a la vez, en el orden exacto de "FALTAN", empezando por el primero.
+
+Reglas:
+- Saluda por su nombre sólo en el PRIMER mensaje del flujo de documentos. Después no repitas el saludo.
+- Pide UN solo documento por mensaje. Nunca enlistes varios a la vez.
+- Cuando el cliente envíe un archivo, confirma con "Recibido: [nombre del documento]." y de inmediato pide el SIGUIENTE pendiente.
+- Acepta PDF, JPG o PNG. Si se ve borroso/cortado, pídelo de nuevo amablemente.
+- Para INE: pide explícitamente FRENTE Y REVERSO, en dos archivos separados si es necesario.
+- Para la "Autorización de buró": avísale que se la enviaremos pre-llenada en PDF por este mismo chat para que la firme y la regrese. (El asesor humano la generará; tú solo informa y confirma cuando la regrese.)
+- Si el cliente pregunta por qué pedimos X documento, responde brevemente su propósito (ej: "la carta patronal confirma tu antigüedad y sueldo para el análisis del banco").
+- NO preguntes por documentos del vendedor ni del inmueble (escrituras del vendedor, predial, no-adeudo de mantenimiento): eso lo maneja el asesor humano en llamada.`;
+    }
+
+    dynamicSystemPrompt = `Eres Isaac, asesor hipotecario senior de HomeLoans.mx. El prospecto YA completó su solicitud de pre-calificación en el sitio web.
 
 ${datosBlock}
 
 REGLAS GENERALES:
 - NUNCA vuelvas a preguntar propósito del crédito, valor de la propiedad, enganche, ingreso ni historial crediticio. Ya los tenemos.
-- Sé profesional, amable y MUY conciso (1-2 oraciones máximo).
+- Sé profesional, amable y MUY conciso (máximo 2-3 oraciones).
 - Responde SIEMPRE en español.
-- TASAS: si pregunta, di que arrancan desde 8.95% anual; un rango exacto requiere validar el expediente completo. Nunca menciones porcentajes menores a 8.95%.
-- Máxima edad + plazo = 80 años. Si aplica, avisar amablemente.
+- TASAS: arrancan desde 8.95% anual. Un rango exacto requiere validar el expediente completo. Nunca menciones porcentajes menores a 8.95%.
+- EDAD + PLAZO no puede superar 80 años.
+- Bancos con los que operamos: Santander, Banamex, HSBC, Mifel, Banorte, Scotiabank. NO trabajamos con BBVA.
 
-${docsBlock}`;
+${flujoBlock}`;
   }
 
   // Si hay mensajes del asesor humano en el historial, advertimos a Claude
@@ -774,9 +888,13 @@ CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor
     );
   }
 
-  // ── PASO 5: Procesar LEAD_DATA ──
-  const { cleanText: reply, leadData } = extractLeadData(rawReply);
+  // ── PASO 5: Procesar LEAD_DATA y PERFIL_LABORAL ──
+  // Claude puede emitir uno o ambos markers al final de su respuesta. Los
+  // extraemos en cadena sobre el mismo texto.
+  const { cleanText: afterLead, leadData } = extractLeadData(rawReply);
+  const { cleanText: reply, perfilLaboral } = extractPerfilLaboral(afterLead);
   let isNowQualified = false;
+  let pfaeEscalated = false; // Si se detecta PFAE, el bot se auto-pausa 24h
 
   if (leadData) {
     try {
@@ -844,6 +962,40 @@ CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor
     }
   }
 
+  // ── PASO 5b: Procesar PERFIL_LABORAL ──
+  // Si el bot detectó el perfil laboral del prospecto, lo persistimos en la
+  // solicitud. Si es PFAE escalamos a asesor humano: pausamos el bot 24h,
+  // marcamos `requiereAsesorHumano` y subimos el contador de no-leídos del
+  // CRM para que el asesor lo vea en su bandeja con prioridad.
+  if (perfilLaboral && crmDocId) {
+    try {
+      const perfilUpdate = { perfilLaboral };
+      if (perfilLaboral === "pfae") {
+        perfilUpdate.requiereAsesorHumano = true;
+      }
+      await db.collection("solicitudes").doc(crmDocId).set(perfilUpdate, { merge: true });
+      console.log(`[WH] PASO 5b OK — perfilLaboral="${perfilLaboral}" persistido en lead ${crmDocId}`);
+
+      if (perfilLaboral === "pfae") {
+        const pausedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await sessionRef.set({ agentPausedUntil: pausedUntil }, { merge: true });
+        await db.collection("solicitudes").doc(crmDocId).set(
+          {
+            unreadWhatsapp: FieldValue.increment(1),
+            agentPausedUntil: pausedUntil,
+            requiereAsesorHumano: true,
+            escalatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        pfaeEscalated = true;
+        console.log(`[WH] PASO 5b — PFAE: bot pausado 24h (hasta ${pausedUntil.toISOString()}), lead escalado a asesor`);
+      }
+    } catch (e) {
+      console.error("[WH] PASO 5b FAIL:", e.code, e.message);
+    }
+  }
+
   // Agregar prefijo de acuse si vino media
   let finalReply = reply;
   if (mediaDocs.length > 0) {
@@ -852,14 +1004,22 @@ CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor
   }
 
   // Al calificar POR PRIMERA VEZ vía WhatsApp, enviar enlace para completar
-  // expediente. Si el lead ya venía calificado del form web, no re-enviamos
-  // el link (ya lo vieron) — el bot se enfoca en pedir documentos.
+  // expediente + link al portal del cliente. Si el lead ya venía calificado
+  // del form web, no re-enviamos el link (ya lo vieron) — el bot se enfoca
+  // en pedir documentos.
   if (isNowQualified && !alreadyQualified && crmDocId) {
-    const base =
-      process.env.PUBLIC_SITE_URL ||
-      "https://homeloans.mx";
-    const link = `${base.replace(/\/$/, "")}/completar-expediente.html?leadId=${crmDocId}`;
+    const base = (process.env.PUBLIC_SITE_URL || "https://homeloans.mx").replace(/\/$/, "");
+    const link = `${base}/completar-expediente.html?leadId=${crmDocId}`;
     finalReply += `\n\nPara completar su expediente (ubicación, empresa, pre-cotización de seguro de vida) use este enlace — tarda ~3 min:\n${link}`;
+
+    // Portal del cliente (48 h): alternativa web al WhatsApp para ver estado
+    // y subir documentos cuando toque.
+    try {
+      const portal = signPortalToken(crmDocId);
+      finalReply += `\n\n📱 Y este es *su portal* (ver estado y subir documentos — válido 48 h):\n${portal.url}`;
+    } catch (e) {
+      console.warn("[WH] No se pudo firmar portal link:", e.message);
+    }
   }
 
   // ── PASO 6: Persistir sesión ──
