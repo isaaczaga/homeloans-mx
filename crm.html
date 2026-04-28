@@ -2,8 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>CRM - HomeLoans.mx</title>
+
+    <!-- PWA: instalable en home screen (iOS/Android). Manifest + SW. -->
+    <link rel="manifest" href="/crm-manifest.json">
+    <meta name="theme-color" content="#059669">
+    <meta name="application-name" content="HL CRM">
+    <link rel="icon" type="image/svg+xml" href="/icons/crm-icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/crm-icon-192.png">
+
+    <!-- iOS: Safari requiere estos meta tags + apple-touch-icon PNG. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HL CRM">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -242,6 +255,17 @@ const db = getFirestore(app);
 // No expone secretos: solo el objeto auth del SDK modular.
 window.__auth = auth;
 lucide.createIcons();
+
+// PWA: registra service worker para que el CRM sea instalable en home
+// screen (iOS/Android). El SW es pass-through (sin cache) — solo existe
+// para cumplir el requisito de instalabilidad. Ver crm-sw.js.
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/crm-sw.js', { scope: '/crm.html' })
+            .then(reg => console.log('[CRM-PWA] SW registrado:', reg.scope))
+            .catch(err => console.warn('[CRM-PWA] SW falló:', err));
+    });
+}
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
