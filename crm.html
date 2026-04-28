@@ -261,7 +261,7 @@ lucide.createIcons();
 // para cumplir el requisito de instalabilidad. Ver crm-sw.js.
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/crm-sw.js', { scope: '/crm.html' })
+        navigator.serviceWorker.register('/crm-sw.js')
             .then(reg => console.log('[CRM-PWA] SW registrado:', reg.scope))
             .catch(err => console.warn('[CRM-PWA] SW falló:', err));
     });

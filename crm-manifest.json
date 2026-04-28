@@ -3,7 +3,7 @@
   "short_name": "HL CRM",
   "description": "CRM interno de HomeLoans.mx — leads, expedientes y WhatsApp.",
   "start_url": "/crm.html",
-  "scope": "/crm.html",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
