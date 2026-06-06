@@ -2,17 +2,28 @@ rules_version = '2';
 
 // Reglas de Firebase Storage para homeloan-app.
 //
-// El webhook (Admin SDK) sube los documentos recibidos por WhatsApp
-// a `leads/{leadId}/...`. Los agentes autenticados en el CRM necesitan
-// poder leerlos (preview + descarga). Ninguna escritura desde cliente.
+// Arquitectura de escritura:
+//  1) El webhook de WhatsApp usa Admin SDK y sube a `leads/{leadId}/*`
+//     (bypasea estas reglas).
+//  2) El portal usa SIGNED URLs generadas por `/api/solicitar-upload`:
+//     el cliente sube con PUT directo a Storage, pero la firma ya incluye
+//     el path exacto y content-type. La firma bypasea estas rules también.
+//     El backend valida tamaño (20 MB) y tipo (PDF) antes de firmar, y
+//     re-valida metadata real en `/api/confirmar-upload` tras la subida.
+//
+// Conclusión: NINGÚN cliente no autenticado puede escribir vía Client SDK.
+// Solo agentes autenticados del CRM pueden LEER (preview / descarga).
 
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // ── Documentos de leads ─────────────────────────────────────
+    // ── Documentos de leads (WhatsApp + portal) ──────────────
+    // Sub-carpeta `portal/` es donde caen los uploads firmados del portal.
+    // Sub-carpeta suelta (sin `portal/`) es donde cae el media de WhatsApp
+    // gestionado por el webhook. Ambos viven bajo `leads/{leadId}/`.
     match /leads/{leadId}/{fileName=**} {
-      allow read:  if request.auth != null;
-      allow write: if false;  // solo Admin SDK (webhook)
+      allow read:  if request.auth != null;  // agentes del CRM
+      allow write: if false;                  // Admin SDK + signed URLs solamente
     }
 
     // ── Denegar todo lo demás ───────────────────────────────────

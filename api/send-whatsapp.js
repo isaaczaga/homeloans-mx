@@ -144,7 +144,13 @@ export default async function handler(req, res) {
   }
 
   // ── 2) Validar body ──
-  const { leadId, phone, message, pauseBot } = req.body || {};
+  // `message` es el texto que guardamos en Firestore para el hilo del CRM.
+  // Si además viene `contentSid`, enviamos el mensaje como plantilla aprobada
+  // (Twilio Content API) — necesario fuera de la ventana de 24h. En ese caso
+  // `contentVariables` es un objeto {"1":"Nombre","2":"https://..."} que Twilio
+  // sustituye en la plantilla. El `message` debe contener el texto YA
+  // renderizado para que el log refleje lo que vio el cliente.
+  const { leadId, phone, message, pauseBot, contentSid, contentVariables } = req.body || {};
   // pauseBot es OPCIONAL. Por defecto el bot sigue respondiendo (coexistencia).
   // Solo se pausa si el agente marca explícitamente la casilla "Tomar control".
   const shouldPauseBot = pauseBot === true;
@@ -155,6 +161,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Mensaje excede 1600 caracteres" });
   }
 
+  // Validar plantilla si viene
+  let contentVariablesStr = null;
+  if (contentSid) {
+    if (typeof contentSid !== "string" || !contentSid.startsWith("HX")) {
+      return res.status(400).json({ error: "contentSid inválido (debe empezar con HX)" });
+    }
+    if (contentVariables && typeof contentVariables === "object") {
+      try {
+        contentVariablesStr = JSON.stringify(contentVariables);
+      } catch {
+        return res.status(400).json({ error: "contentVariables no serializable" });
+      }
+    }
+  }
+
   const toNumber = normalizeWhatsAppNumber(phone);
   // IMPORTANTE: el sender NUNCA se canonicaliza. Twilio requiere que el "from"
   // coincida 1:1 con el canal provisionado (puede tener "1" móvil o no).
@@ -163,13 +184,23 @@ export default async function handler(req, res) {
   // ── 3) Enviar vía Twilio ──
   let twilioSid;
   try {
-    const msg = await twilioClient.messages.create({
-      from: fromNumber,
-      to: toNumber,
-      body: String(message).trim(),
-    });
+    const payload = contentSid
+      ? {
+          from: fromNumber,
+          to: toNumber,
+          contentSid,
+          ...(contentVariablesStr ? { contentVariables: contentVariablesStr } : {}),
+        }
+      : {
+          from: fromNumber,
+          to: toNumber,
+          body: String(message).trim(),
+        };
+    const msg = await twilioClient.messages.create(payload);
     twilioSid = msg.sid;
-    console.log(`[SEND] Mensaje enviado a ${toNumber} por ${agentEmail} — SID: ${twilioSid}`);
+    console.log(
+      `[SEND] Mensaje enviado a ${toNumber} por ${agentEmail} — SID: ${twilioSid}${contentSid ? ` (plantilla ${contentSid})` : ""}`
+    );
   } catch (e) {
     console.error("[SEND] Twilio FAIL:", e.code, e.message);
     const msg = e.code === 63016

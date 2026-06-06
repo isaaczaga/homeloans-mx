@@ -14,6 +14,7 @@ import twilio from "twilio";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { signPortalToken } from "./generar-link-portal.js";
 
 // ── Firebase Admin SDK ──────────────────────────────────────
 let db, bucket;
@@ -1003,14 +1004,22 @@ CONTEXTO IMPORTANTE: En esta conversación también está participando un asesor
   }
 
   // Al calificar POR PRIMERA VEZ vía WhatsApp, enviar enlace para completar
-  // expediente. Si el lead ya venía calificado del form web, no re-enviamos
-  // el link (ya lo vieron) — el bot se enfoca en pedir documentos.
+  // expediente + link al portal del cliente. Si el lead ya venía calificado
+  // del form web, no re-enviamos el link (ya lo vieron) — el bot se enfoca
+  // en pedir documentos.
   if (isNowQualified && !alreadyQualified && crmDocId) {
-    const base =
-      process.env.PUBLIC_SITE_URL ||
-      "https://homeloans.mx";
-    const link = `${base.replace(/\/$/, "")}/completar-expediente.html?leadId=${crmDocId}`;
+    const base = (process.env.PUBLIC_SITE_URL || "https://homeloans.mx").replace(/\/$/, "");
+    const link = `${base}/completar-expediente.html?leadId=${crmDocId}`;
     finalReply += `\n\nPara completar su expediente (ubicación, empresa, pre-cotización de seguro de vida) use este enlace — tarda ~3 min:\n${link}`;
+
+    // Portal del cliente (48 h): alternativa web al WhatsApp para ver estado
+    // y subir documentos cuando toque.
+    try {
+      const portal = signPortalToken(crmDocId);
+      finalReply += `\n\n📱 Y este es *su portal* (ver estado y subir documentos — válido 48 h):\n${portal.url}`;
+    } catch (e) {
+      console.warn("[WH] No se pudo firmar portal link:", e.message);
+    }
   }
 
   // ── PASO 6: Persistir sesión ──
