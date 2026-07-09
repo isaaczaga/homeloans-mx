@@ -265,5 +265,91 @@
             toggleLoanPurposeFields(document.getElementById('loanPurpose').value);
         });
     </script>
+
+    <!-- HL Pixel v2: ViewContent + InitiateCheckout + CAPI Lead -->
+    <script>
+    // CAPI utility (duplicado en cada página para ser autónomo)
+    window._hlCAPI = window._hlCAPI || async function(evName, userData, customData) {
+      try {
+        await fetch('%%CAPI_WORKER_URL%%/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: evName,
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: window.location.href,
+            user_data: userData || {},
+            custom_data: customData || {},
+            action_source: 'website'
+          })
+        });
+      } catch(e) {}
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+      // 1. ViewContent — usuario llegó a pre-calificación (alta intención)
+      fbq('track', 'ViewContent', {
+        content_name: 'Pre-calificación — Crédito Jumbo',
+        content_category: 'mortgage_application',
+        value: 0,
+        currency: 'MXN'
+      });
+
+      // 2. InitiateCheckout — empezó a llenar el formulario
+      var _hlFormStarted = false;
+      var _hlFields = document.querySelectorAll('form input, form select, form textarea');
+      _hlFields.forEach(function(field) {
+        field.addEventListener('focus', function() {
+          if (!_hlFormStarted) {
+            _hlFormStarted = true;
+            fbq('track', 'InitiateCheckout', {
+              content_name: 'Formulario Pre-calificación Jumbo',
+              content_category: 'mortgage_application',
+              num_items: 1
+            });
+          }
+        }, { once: true });
+      });
+
+      // 3. CAPI Lead — al hacer submit (refuerza el fbq existente server-side)
+      var _hlForm = document.querySelector('form');
+      if (_hlForm) {
+        _hlForm.addEventListener('submit', function() {
+          // Hashear email y teléfono con SHA-256 antes de enviar
+          var email = (_hlForm.querySelector('[name="email"]') || {}).value || '';
+          var phone = (_hlForm.querySelector('[name="phone"]') || {}).value || '';
+          var name  = (_hlForm.querySelector('[name="fullName"]') || {}).value || '';
+          var propV = (_hlForm.querySelector('[name="propertyValue"]') || {}).value || '';
+
+          // Hash async — no bloquea el submit
+          (async function() {
+            async function sha256(s) {
+              if (!s) return null;
+              var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s.trim().toLowerCase()));
+              return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+            }
+            var userData = {
+              em: await sha256(email),
+              ph: await sha256(phone.replace(/\D/g,'')),
+              fn: await sha256(name.split(' ')[0])
+            };
+            // Quitar nulos
+            Object.keys(userData).forEach(function(k){ if(!userData[k]) delete userData[k]; });
+            window._hlCAPI('Lead', userData, {
+              content_name:     'Lead Pre-calificación Jumbo',
+              content_category: 'mortgage',
+              value:            0,
+              currency:         'MXN',
+              property_value:   propV
+            });
+          })();
+        });
+      }
+
+    });
+    </script>
+    <!-- End HL Pixel v2 -->
+
 </body>
 </html>

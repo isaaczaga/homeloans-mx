@@ -1,0 +1,14 @@
+name = "homeloans-capi"
+main = "cloudflare-worker.js"
+compatibility_date = "2024-01-01"
+
+# Variables de entorno (secretos — NO hardcodear aquí)
+# Configurar via: wrangler secret put FACEBOOK_ACCESS_TOKEN
+# Configurar via: wrangler secret put PIXEL_ID
+
+[vars]
+PIXEL_ID = "2219149935562688"
+
+# Rutas del worker
+[[routes]]
+pattern = "homeloans-capi.*.workers.dev/event"

@@ -82,5 +82,19 @@
         const mobileMenu = document.getElementById('mobile-menu');
         mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
     </script>
+
+    <!-- HL Pixel v2: ViewContent -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      fbq('track', 'ViewContent', {
+        content_name: 'Quiénes Somos — HomeLoans.mx',
+        content_category: 'content',
+        value: 0,
+        currency: 'MXN'
+      });
+    });
+    </script>
+    <!-- End HL Pixel v2 -->
+
 </body>
 </html>

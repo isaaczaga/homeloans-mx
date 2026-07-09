@@ -347,7 +347,7 @@
         
         function handleInputChange() {
             gtag('event', 'calculator_use');
-            fbq('track', 'CustomizeProduct');
+            if(!window._hlCalcFired){window._hlCalcFired=true;fbq('trackCustom','CalculatorUsed',{content_category:'mortgage_calculator',content_name:'Calculadora Hipotecaria Jumbo'});}
             calculateAllTerms();
         }
 
@@ -405,5 +405,41 @@
         loanAmountInput.value = formatNumber(loanAmountInput.value);
         calculateAllTerms();
     </script>
+
+    <!-- HL Pixel v2: ViewContent + CAPI utility -->
+    <script>
+    // CAPI utility — envía eventos al servidor (recupera iOS14+ y ad-blockers)
+    window._hlCAPI = async function(evName, userData, customData) {
+      try {
+        var hashed = {};
+        if (userData && userData.em) hashed.em = userData.em;
+        if (userData && userData.ph) hashed.ph = userData.ph;
+        await fetch('%%CAPI_WORKER_URL%%/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: evName,
+            event_time: Math.floor(Date.now() / 1000),
+            event_source_url: window.location.href,
+            user_data: hashed,
+            custom_data: customData || {},
+            action_source: 'website'
+          })
+        });
+      } catch(e) {}
+    };
+
+    // ViewContent — usuario vio la home
+    document.addEventListener('DOMContentLoaded', function() {
+      fbq('track', 'ViewContent', {
+        content_name: 'Home — Crédito Hipotecario Jumbo',
+        content_category: 'mortgage',
+        value: 0,
+        currency: 'MXN'
+      });
+    });
+    </script>
+    <!-- End HL Pixel v2 -->
+
 </body>
 </html>
