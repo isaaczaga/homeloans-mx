@@ -414,7 +414,7 @@
         var hashed = {};
         if (userData && userData.em) hashed.em = userData.em;
         if (userData && userData.ph) hashed.ph = userData.ph;
-        await fetch('%%CAPI_WORKER_URL%%/event', {
+        await fetch('/api/capi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

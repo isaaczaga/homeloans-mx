@@ -271,7 +271,7 @@
     // CAPI utility (duplicado en cada página para ser autónomo)
     window._hlCAPI = window._hlCAPI || async function(evName, userData, customData) {
       try {
-        await fetch('%%CAPI_WORKER_URL%%/event', {
+        await fetch('/api/capi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
